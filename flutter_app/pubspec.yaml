@@ -1,0 +1,88 @@
+name: cherrypick_app
+description: "CherryPick - Malaysian Price Comparison App"
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.9.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  # UI & Icons
+  cupertino_icons: ^1.0.8
+
+  # Required for the smooth dots at the bottom of the Onboarding screen
+  smooth_page_indicator: ^1.1.0
+
+  # 🚀 FIREBASE - SYNCHRONIZED TO LATEST STABLE VERSIONS 🚀
+  firebase_core: ^4.2.1          # Consistent with your previous attempts
+  google_sign_in: ^7.2.0        # Updated for better compatibility
+  firebase_auth: ^6.1.2
+  cloud_firestore: ^6.1.0
+  firebase_storage: ^13.0.4     # Updated to the latest major version
+  firebase_messaging: ^16.0.4   # CRITICAL UPDATE for Null Safety and Dart 3.9.2
+  firebase_analytics: ^12.0.4   # Updated to the latest major version
+  firebase_crashlytics: ^5.0.5  # Updated to the latest major version
+
+  # Google Maps & Location
+  google_maps_flutter: ^2.5.0
+  geolocator: ^14.0.2
+  geocoding: ^4.0.0
+
+  # Image & Camera
+  image_picker: ^1.0.4
+  camera: ^0.11.3
+
+  # OCR & Receipt Processing
+  tflite_flutter: ^0.12.1
+
+  # HTTP & API
+  http: ^1.1.0
+  dio: ^5.3.2
+
+  # State Management
+  provider: ^6.1.1
+
+  # Local Storage
+  shared_preferences: ^2.2.2
+
+  # Notifications
+  flutter_local_notifications: ^19.5.0
+
+  # Utilities
+  intl: ^0.18.1
+  uuid: ^4.2.1
+  path_provider: ^2.1.1
+  font_awesome_flutter: ^10.12.0
+  
+  # Charts & Visualizations
+  fl_chart: ^0.69.0
+  syncfusion_flutter_charts: ^27.1.48
+  
+  # Barcode Scanner
+  # mobile_scanner: ^5.2.3  # Temporarily disabled due to dependency conflict
+  # Using camera package for barcode scanning (manual input fallback available)
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+  flutter_native_splash: ^2.3.1
+
+flutter:
+  uses-material-design: true
+
+  assets:
+    - assets/images/logo.png
+    - assets/onboard/receipt.png
+    - assets/onboard/prices.png
+    - assets/onboard/route.png
+    - assets/onboard/list.png
+
+flutter_native_splash:
+  color: "#1E1E1E"
+  image: assets/images/logo.png

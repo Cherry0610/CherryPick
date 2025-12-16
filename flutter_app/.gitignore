@@ -1,0 +1,11 @@
+# Change /build/ to:
+build/
+**/build/
+
+# Change .dart_tool/ to:
+.dart_tool/
+**/.dart_tool/
+
+# Add these if they aren't there:
+ios/Pods/
+ios/.symlinks/

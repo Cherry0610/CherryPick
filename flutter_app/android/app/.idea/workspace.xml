@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="AutoImportSettings">
+    <option name="autoReloadType" value="SELECTIVE" />
+  </component>
+  <component name="ChangeListManager">
+    <list default="true" id="1d109f69-30f3-4f35-8086-4ae215218eed" name="Changes" comment="">
+      <change afterPath="$PROJECT_DIR$/../../../.idea/.gitignore" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../../.idea/CherryPick.iml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../../.idea/codeStyles/Project.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../../.idea/codeStyles/codeStyleConfig.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../../.idea/git_toolbox_blame.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../../.idea/libraries/Dart_Packages.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../../.idea/libraries/Dart_SDK.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../../.idea/misc.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../../.idea/modules.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../../.idea/vcs.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/res/drawable-hdpi/splash.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/res/drawable-mdpi/splash.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/res/drawable-v21/background.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/res/drawable-xhdpi/splash.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/res/drawable-xxhdpi/splash.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/res/drawable-xxxhdpi/splash.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/res/drawable/background.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/res/values-night-v31/styles.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/res/values-v31/styles.xml" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../build/reports/problems/problems-report.html" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../ios/Runner/Assets.xcassets/LaunchBackground.imageset/Contents.json" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../ios/Runner/Assets.xcassets/LaunchBackground.imageset/background.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../ios/Runner/Runner.entitlements" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../lib/screens/search_screen.dart" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../lib/screens/store_screen.dart" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../web/splash/img/dark-1x.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../web/splash/img/dark-2x.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../web/splash/img/dark-3x.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../web/splash/img/dark-4x.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../web/splash/img/light-1x.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../web/splash/img/light-2x.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../web/splash/img/light-3x.png" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/../../web/splash/img/light-4x.png" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/../../../CherryPick/ContentView.swift" beforeDir="false" afterPath="$PROJECT_DIR$/../../../CherryPick/ContentView.swift" afterDir="false" />
+    </list>
+    <option name="SHOW_DIALOG" value="false" />
+    <option name="HIGHLIGHT_CONFLICTS" value="true" />
+    <option name="HIGHLIGHT_NON_ACTIVE_CHANGELIST" value="false" />
+    <option name="LAST_RESOLUTION" value="IGNORE" />
+  </component>
+  <component name="ExternalProjectsData">
+    <projectState path="$PROJECT_DIR$">
+      <ProjectState />
+    </projectState>
+  </component>
+  <component name="Git.Settings">
+    <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$/../../.." />
+  </component>
+  <component name="ProjectCodeStyleSettingsMigration">
+    <option name="version" value="2" />
+  </component>
+  <component name="ProjectColorInfo"><![CDATA[{
+  "associatedIndex": 5
+}]]></component>
+  <component name="ProjectId" id="369FKntPjIUF4r8BRI3JNIJfFby" />
+  <component name="ProjectViewState">
+    <option name="hideEmptyMiddlePackages" value="true" />
+    <option name="showLibraryContents" value="true" />
+  </component>
+  <component name="PropertiesComponent"><![CDATA[{
+  "keyToString": {
+    "RunOnceActivity.OpenProjectViewOnStart": "true",
+    "RunOnceActivity.ShowReadmeOnStart": "true",
+    "android.gradle.sync.needed": "true",
+    "dart.analysis.tool.window.visible": "false",
+    "git-widget-placeholder": "main"
+  }
+}]]></component>
+  <component name="SpellCheckerSettings" RuntimeDictionaries="0" Folders="0" CustomDictionaries="0" DefaultDictionary="application-level" UseSingleDictionary="true" transferred="true" />
+  <component name="TaskManager">
+    <task active="true" id="Default" summary="Default task">
+      <changelist id="1d109f69-30f3-4f35-8086-4ae215218eed" name="Changes" comment="" />
+      <created>1764410820555</created>
+      <option name="number" value="Default" />
+      <option name="presentableId" value="Default" />
+      <updated>1764410820555</updated>
+    </task>
+    <servers />
+  </component>
+</project>

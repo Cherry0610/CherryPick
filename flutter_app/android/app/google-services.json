@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "776290376233",
+    "project_id": "cherrypick-67246",
+    "storage_bucket": "cherrypick-67246.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:776290376233:android:b8cc816dbfe66415c3da38",
+        "android_client_info": {
+          "package_name": "com.cherrypick.cherrypick_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTdkoeH2xB-cFXqRCXqf0o6HIIOwVbGBE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:776290376233:android:6e671c01f491e6c0c3da38",
+        "android_client_info": {
+          "package_name": "com.cherrypick.cherrypickapp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCTdkoeH2xB-cFXqRCXqf0o6HIIOwVbGBE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
