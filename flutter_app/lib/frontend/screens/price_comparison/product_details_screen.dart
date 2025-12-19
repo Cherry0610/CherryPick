@@ -63,7 +63,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   final PriceComparisonService _priceService = PriceComparisonService();
   final GroceryStoreApiService _groceryService = GroceryStoreApiService();
   final WishlistService _wishlistService = WishlistService();
-  
+
   bool _isLoadingPrices = true;
   List<StorePrice> _stores = [];
   bool _canSetAlert = false; // Track if target price is valid
@@ -100,41 +100,59 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   // Load real prices from grocery stores
   Future<void> _loadRealPrices() async {
     setState(() => _isLoadingPrices = true);
-    
+
     try {
-      debugPrint('🔍 Loading prices for: ${widget.productName} (ID: ${widget.productId})');
-      
+      debugPrint(
+        '🔍 Loading prices for: ${widget.productName} (ID: ${widget.productId})',
+      );
+
       // Normalize product name for better matching
       final normalizedProductName = widget.productName.toLowerCase().trim();
-      
+
       // Search for the product by name to get real data from grocery stores
-      final groceryProducts = await _groceryService.searchProducts(widget.productName);
+      final groceryProducts = await _groceryService.searchProducts(
+        widget.productName,
+      );
       debugPrint('📦 Found ${groceryProducts.length} grocery products');
-      
+
       // Filter products to match the product name more accurately
       // This ensures we only use products that closely match the selected product
       final matchedProducts = groceryProducts.where((product) {
         final productNameLower = product.name.toLowerCase().trim();
         // Check if product name contains key words from the search query
-        final searchWords = normalizedProductName.split(' ').where((w) => w.length > 2).toList();
-        if (searchWords.isEmpty) return true; // If no meaningful words, include all
-        
+        final searchWords = normalizedProductName
+            .split(' ')
+            .where((w) => w.length > 2)
+            .toList();
+        if (searchWords.isEmpty)
+          return true; // If no meaningful words, include all
+
         // Product matches if it contains at least 50% of the search words
-        final matchingWords = searchWords.where((word) => productNameLower.contains(word)).length;
+        final matchingWords = searchWords
+            .where((word) => productNameLower.contains(word))
+            .length;
         return matchingWords >= (searchWords.length * 0.5).ceil();
       }).toList();
-      
-      debugPrint('🎯 Filtered to ${matchedProducts.length} closely matched products');
-      
+
+      debugPrint(
+        '🎯 Filtered to ${matchedProducts.length} closely matched products',
+      );
+
       // Extract product image and data from best matching grocery product
       if (matchedProducts.isNotEmpty) {
         // Sort by name similarity to get the best match first
         matchedProducts.sort((a, b) {
-          final aSimilarity = _calculateNameSimilarity(normalizedProductName, a.name.toLowerCase());
-          final bSimilarity = _calculateNameSimilarity(normalizedProductName, b.name.toLowerCase());
+          final aSimilarity = _calculateNameSimilarity(
+            normalizedProductName,
+            a.name.toLowerCase(),
+          );
+          final bSimilarity = _calculateNameSimilarity(
+            normalizedProductName,
+            b.name.toLowerCase(),
+          );
           return bSimilarity.compareTo(aSimilarity); // Higher similarity first
         });
-        
+
         final bestMatch = matchedProducts.first;
         _productImageUrl = bestMatch.imageUrl;
         _productData = {
@@ -144,7 +162,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           'rating': bestMatch.rating ?? 0.0,
           'reviews': bestMatch.reviewCount ?? 0,
         };
-        debugPrint('✅ Loaded product data: ${_productData!['name']}, Image: $_productImageUrl');
+        debugPrint(
+          '✅ Loaded product data: ${_productData!['name']}, Image: $_productImageUrl',
+        );
       } else if (groceryProducts.isNotEmpty) {
         // Fallback to first product if no close matches
         final firstProduct = groceryProducts.first;
@@ -156,74 +176,97 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           'rating': firstProduct.rating ?? 0.0,
           'reviews': firstProduct.reviewCount ?? 0,
         };
-        debugPrint('⚠️ Using first product as fallback: ${_productData!['name']}');
+        debugPrint(
+          '⚠️ Using first product as fallback: ${_productData!['name']}',
+        );
       } else {
         debugPrint('⚠️ No grocery products found, using fallback data');
       }
-      
+
       // Convert matched grocery products to StorePrice format
       // Group by store name to avoid duplicates and use the best match for each store
       final Map<String, GroceryStoreProduct> bestProductPerStore = {};
-      
-      for (var product in matchedProducts.isNotEmpty ? matchedProducts : groceryProducts) {
+
+      for (var product
+          in matchedProducts.isNotEmpty ? matchedProducts : groceryProducts) {
         if (product.price <= 0) continue; // Skip invalid prices
-        
+
         final storeName = product.storeName;
         // Keep the product with the best name match for each store
         if (!bestProductPerStore.containsKey(storeName)) {
           bestProductPerStore[storeName] = product;
         } else {
           final existing = bestProductPerStore[storeName]!;
-          final existingSimilarity = _calculateNameSimilarity(normalizedProductName, existing.name.toLowerCase());
-          final currentSimilarity = _calculateNameSimilarity(normalizedProductName, product.name.toLowerCase());
-          
+          final existingSimilarity = _calculateNameSimilarity(
+            normalizedProductName,
+            existing.name.toLowerCase(),
+          );
+          final currentSimilarity = _calculateNameSimilarity(
+            normalizedProductName,
+            product.name.toLowerCase(),
+          );
+
           if (currentSimilarity > existingSimilarity) {
             bestProductPerStore[storeName] = product;
           }
         }
       }
-      
+
       if (bestProductPerStore.isNotEmpty) {
         _stores = bestProductPerStore.values.map((groceryProduct) {
-          debugPrint('🏪 Store: ${groceryProduct.storeName}, Product: ${groceryProduct.name}, Price: RM${groceryProduct.price}, URL: ${groceryProduct.productUrl}');
-          
+          debugPrint(
+            '🏪 Store: ${groceryProduct.storeName}, Product: ${groceryProduct.name}, Price: RM${groceryProduct.price}, URL: ${groceryProduct.productUrl}',
+          );
+
           return StorePrice(
             name: groceryProduct.storeName,
             price: 'RM${groceryProduct.price.toStringAsFixed(2)}',
             shipping: null,
-            delivery: groceryProduct.inStock ? 'In Stock' : 'Check availability',
-            storeUrl: groceryProduct.productUrl, // This is the specific product URL
+            delivery: groceryProduct.inStock
+                ? 'In Stock'
+                : 'Check availability',
+            storeUrl:
+                groceryProduct.productUrl, // This is the specific product URL
           );
         }).toList();
-        
+
         // Sort stores by price (cheapest first) - extract numeric price for sorting
         _stores.sort((a, b) {
-          final aPrice = double.tryParse(a.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
-          final bPrice = double.tryParse(b.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
+          final aPrice =
+              double.tryParse(a.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
+          final bPrice =
+              double.tryParse(b.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
           return aPrice.compareTo(bPrice);
         });
-        
-        debugPrint('✅ Created ${_stores.length} store prices sorted by price (cheapest first)');
+
+        debugPrint(
+          '✅ Created ${_stores.length} store prices sorted by price (cheapest first)',
+        );
       } else {
-        debugPrint('⚠️ No valid grocery products found for: ${widget.productName}');
+        debugPrint(
+          '⚠️ No valid grocery products found for: ${widget.productName}',
+        );
       }
-      
+
       // Also try to get price comparison from Firestore (for local stores)
       try {
-        final comparison = await _priceService.getPriceComparison(widget.productId);
-        
-        if (comparison['prices'] != null && (comparison['prices'] as List).isNotEmpty) {
+        final comparison = await _priceService.getPriceComparison(
+          widget.productId,
+        );
+
+        if (comparison['prices'] != null &&
+            (comparison['prices'] as List).isNotEmpty) {
           final firestoreStores = (comparison['prices'] as List).map((item) {
             final store = item['store'] as Store?;
             final price = item['price'] as Price?;
             final isAvailable = item['isAvailable'] as bool? ?? true;
-            
+
             // Get product URL from grocery product if available
             final productUrl = item['productUrl'] as String?;
             final groceryProduct = item['groceryProduct'];
-            
+
             String? storeUrl;
-            
+
             if (productUrl != null && productUrl.isNotEmpty) {
               storeUrl = productUrl;
             } else if (groceryProduct != null) {
@@ -237,38 +280,44 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 debugPrint('Error extracting product URL: $e');
               }
             }
-            
+
             if (storeUrl == null || storeUrl.isEmpty) {
               storeUrl = store?.website;
             }
-            
+
             return StorePrice(
               name: store?.name ?? 'Unknown Store',
-              price: price != null ? 'RM${price.price.toStringAsFixed(2)}' : 'RM0.00',
+              price: price != null
+                  ? 'RM${price.price.toStringAsFixed(2)}'
+                  : 'RM0.00',
               shipping: null,
               delivery: isAvailable ? 'In Stock' : 'Check availability',
               storeUrl: storeUrl,
             );
           }).toList();
-          
+
           // Merge Firestore stores with grocery stores (avoid duplicates)
           for (var fsStore in firestoreStores) {
             if (!_stores.any((s) => s.name == fsStore.name)) {
               _stores.add(fsStore);
             }
           }
-          
+
           // Re-sort all stores by price after merging
           _stores.sort((a, b) {
-            final aPrice = double.tryParse(a.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
-            final bPrice = double.tryParse(b.price.replaceAll(RegExp(r'[^\d.]'), '')) ?? 0.0;
+            final aPrice =
+                double.tryParse(a.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
+                0.0;
+            final bPrice =
+                double.tryParse(b.price.replaceAll(RegExp(r'[^\d.]'), '')) ??
+                0.0;
             return aPrice.compareTo(bPrice);
           });
         }
       } catch (e) {
         debugPrint('⚠️ Error getting Firestore prices: $e');
       }
-      
+
       // If still no prices found, use fallback hardcoded prices
       if (_stores.isEmpty) {
         debugPrint('⚠️ No prices found, using fallback');
@@ -287,75 +336,84 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   Map<String, dynamic> _getProductData(String productId) {
     final productMap = {
       '1': {
-    'name': 'Organic Whole Milk',
-    'subtitle': '(1 Gallon)',
-    'rating': 4.51,
-    'reviews': 78,
-    'image': 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=600&h=600&fit=crop',
+        'name': 'Organic Whole Milk',
+        'subtitle': '(1 Gallon)',
+        'rating': 4.51,
+        'reviews': 78,
+        'image':
+            'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=600&h=600&fit=crop',
       },
       '2': {
         'name': 'Fresh Salmon Fillet',
         'subtitle': '(500g)',
         'rating': 4.8,
         'reviews': 124,
-        'image': 'https://images.unsplash.com/photo-1574781330855-d0db8cc6a79c?w=600&h=600&fit=crop',
+        'image':
+            'https://images.unsplash.com/photo-1574781330855-d0db8cc6a79c?w=600&h=600&fit=crop',
       },
       '7': {
         'name': 'Fresh Avocados',
         'subtitle': '(Pack of 4)',
         'rating': 4.6,
         'reviews': 89,
-        'image': 'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=600&h=600&fit=crop',
+        'image':
+            'https://images.unsplash.com/photo-1523049673857-eb18f1d7b578?w=600&h=600&fit=crop',
       },
       '11': {
         'name': 'Fresh Strawberries',
         'subtitle': '(250g)',
         'rating': 4.5,
         'reviews': 67,
-        'image': 'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=600&h=600&fit=crop',
+        'image':
+            'https://images.unsplash.com/photo-1464965911861-746a04b4bca6?w=600&h=600&fit=crop',
       },
       '12': {
         'name': 'Chicken Breast',
         'subtitle': '(1lb)',
         'rating': 4.4,
         'reviews': 156,
-        'image': 'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=600&h=600&fit=crop',
+        'image':
+            'https://images.unsplash.com/photo-1604503468506-a8da13d82791?w=600&h=600&fit=crop',
       },
     };
 
     // Default product data
-    return productMap[productId] ?? {
-      'name': widget.productName.isNotEmpty ? widget.productName : 'Product',
-      'subtitle': '',
-      'rating': 4.0,
-      'reviews': 0,
-      'image': 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=600&h=600&fit=crop',
-    };
+    return productMap[productId] ??
+        {
+          'name': widget.productName.isNotEmpty
+              ? widget.productName
+              : 'Product',
+          'subtitle': '',
+          'rating': 4.0,
+          'reviews': 0,
+          'image':
+              'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=600&h=600&fit=crop',
+        };
   }
 
   // Get store prices based on productId
   List<StorePrice> _getStorePrices(String productId) {
     final storeMap = {
       '1': [
-    StorePrice(
-      name: 'Jaya Grocer (Delivery)',
-      price: 'RM9.90',
-      originalPrice: 'RM12.00',
-      shipping: 'RM4.99',
-      delivery: 'Est. Delivery: Tomorrow',
+        StorePrice(
+          name: 'Jaya Grocer (Delivery)',
+          price: 'RM9.90',
+          originalPrice: 'RM12.00',
+          shipping: 'RM4.99',
+          delivery: 'Est. Delivery: Tomorrow',
           storeUrl: 'https://www.jayagrocer.com',
-    ),
-    StorePrice(
-      name: 'AEON',
-      price: 'RM18.50',
-      delivery: 'Family Pack (bulk)',
+        ),
+        StorePrice(
+          name: 'AEON',
+          price: 'RM18.50',
+          delivery: 'Family Pack (bulk)',
           storeUrl: 'https://www.aeonretail.com.my',
-    ),
-    StorePrice(
-      name: 'Village Grocer',
-      price: 'RM9.90',
-      shipping: 'RM4.99',
-      delivery: 'Est. Delivery: Tomorrow',
+        ),
+        StorePrice(
+          name: 'Village Grocer',
+          price: 'RM9.90',
+          shipping: 'RM4.99',
+          delivery: 'Est. Delivery: Tomorrow',
           storeUrl: 'https://www.villagegrocer.com',
         ),
       ],
@@ -420,14 +478,15 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       ],
     };
 
-    return storeMap[productId] ?? [
-      StorePrice(
-        name: 'Jaya Grocer',
-        price: 'RM0.00',
-        delivery: 'Check availability',
-        storeUrl: 'https://www.jayagrocer.com',
-      ),
-    ];
+    return storeMap[productId] ??
+        [
+          StorePrice(
+            name: 'Jaya Grocer',
+            price: 'RM0.00',
+            delivery: 'Check availability',
+            storeUrl: 'https://www.jayagrocer.com',
+          ),
+        ];
   }
 
   @override
@@ -440,7 +499,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   void _handleWishlistClick() {
     final user = FirebaseAuth.instance.currentUser;
     final isGuest = user == null || user.isAnonymous;
-    
+
     if (isGuest) {
       // Redirect guest to profile screen to sign up/login
       Navigator.pushNamedAndRemoveUntil(
@@ -450,14 +509,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       );
       return;
     }
-    
+
     if (!_isWishlisted) {
       // Show Yes/No dialog first
       showDialog(
         context: context,
         builder: (context) => AlertDialog(
           title: const Text('Add to Wishlist'),
-          content: const Text('Do you want to set a target price for this product?'),
+          content: const Text(
+            'Do you want to set a target price for this product?',
+          ),
           actions: [
             TextButton(
               onPressed: () {
@@ -470,10 +531,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
             TextButton(
               onPressed: () {
                 Navigator.pop(context);
-      setState(() {
-        _isWishlisted = true;
-        _showTargetPriceModal = true;
-      });
+                setState(() {
+                  _isWishlisted = true;
+                  _showTargetPriceModal = true;
+                });
               },
               child: const Text('Yes'),
             ),
@@ -502,7 +563,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
     try {
       final productName = widget.productName;
-      final productImage = _productImageUrl ?? _product['image'] as String? ?? '';
+      final productImage =
+          _productImageUrl ?? _product['image'] as String? ?? '';
 
       final wishlistItem = WishlistItem(
         id: '',
@@ -521,14 +583,14 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       );
 
       await _wishlistService.addToWishlist(wishlistItem);
-      
+
       if (mounted) {
         setState(() {
           _isWishlisted = true;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Added to wishlist')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Added to wishlist')));
       }
     } catch (e) {
       debugPrint('Error adding to wishlist: $e');
@@ -550,7 +612,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         (item) => item.productId == widget.productId,
         orElse: () => wishlistItems.first,
       );
-      
+
       if (item.id.isNotEmpty) {
         await _wishlistService.removeFromWishlist(item.id);
         if (mounted) {
@@ -566,10 +628,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   Future<void> _handleSetTargetPrice() async {
     if (_targetPriceController.text.isEmpty) return;
-    
+
     final targetPriceText = _targetPriceController.text.trim();
     final targetPrice = double.tryParse(targetPriceText);
-    
+
     if (targetPrice == null || targetPrice <= 0) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -596,7 +658,8 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     try {
       // Get current product data
       final productName = widget.productName;
-      final productImage = _productImageUrl ?? _product['image'] as String? ?? '';
+      final productImage =
+          _productImageUrl ?? _product['image'] as String? ?? '';
 
       // Create wishlist item
       final wishlistItem = WishlistItem(
@@ -617,25 +680,27 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
       // Save to Firestore
       await _wishlistService.addToWishlist(wishlistItem);
-      
+
       debugPrint('✅ Wishlist item saved: $productName, Target: RM$targetPrice');
 
       if (mounted) {
-      setState(() {
-        _showTargetPriceModal = false;
+        setState(() {
+          _showTargetPriceModal = false;
           _targetPriceController.clear();
           _isSavingWishlist = false;
           _isWishlisted = true;
-      });
-        
+        });
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Price alert set! You\'ll be notified when $productName drops to RM${targetPrice.toStringAsFixed(2)}'),
+            content: Text(
+              'Price alert set! You\'ll be notified when $productName drops to RM${targetPrice.toStringAsFixed(2)}',
+            ),
             duration: const Duration(seconds: 3),
             backgroundColor: Colors.green,
           ),
         );
-        
+
         // Navigate back to product screen after setting target price
         Navigator.pop(context);
       }
@@ -645,7 +710,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         setState(() {
           _isSavingWishlist = false;
         });
-        
+
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Error saving wishlist: ${e.toString()}'),
@@ -660,18 +725,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   int _calculateNameSimilarity(String str1, String str2) {
     if (str1 == str2) return 100;
     if (str1.isEmpty || str2.isEmpty) return 0;
-    
+
     // Check if one contains the other
     if (str1.contains(str2) || str2.contains(str1)) {
       return 80;
     }
-    
+
     // Count common words
     final words1 = str1.split(' ').where((w) => w.length > 2).toSet();
     final words2 = str2.split(' ').where((w) => w.length > 2).toSet();
     final commonWords = words1.intersection(words2).length;
     final totalWords = words1.union(words2).length;
-    
+
     if (totalWords == 0) return 0;
     return (commonWords / totalWords * 100).round();
   }
@@ -679,11 +744,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   /// Get Google Maps search query for a store name
   String _getStoreMapsQuery(String storeName) {
     final storeNameLower = storeName.toLowerCase();
-    
+
     // Map store names to their Google Maps search queries
-    if (storeNameLower.contains('nsk') || storeNameLower.contains('nsk grocer')) {
+    if (storeNameLower.contains('nsk') ||
+        storeNameLower.contains('nsk grocer')) {
       return 'NSK Grocer Malaysia';
-    } else if (storeNameLower.contains('jaya grocer') || storeNameLower.contains('jayagrocer')) {
+    } else if (storeNameLower.contains('jaya grocer') ||
+        storeNameLower.contains('jayagrocer')) {
       return 'Jaya Grocer Malaysia';
     } else if (storeNameLower.contains('lotus')) {
       return 'Lotus Malaysia';
@@ -697,13 +764,15 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       return 'Tesco Malaysia';
     } else if (storeNameLower.contains('giant')) {
       return 'Giant Malaysia';
-    } else if (storeNameLower.contains('speedmart') || storeNameLower.contains('99')) {
+    } else if (storeNameLower.contains('speedmart') ||
+        storeNameLower.contains('99')) {
       return '99 Speedmart Malaysia';
     } else if (storeNameLower.contains('econsave')) {
       return 'Econsave Malaysia';
     } else if (storeNameLower.contains('cold storage')) {
       return 'Cold Storage Malaysia';
-    } else if (storeNameLower.contains('big') || storeNameLower.contains('ben')) {
+    } else if (storeNameLower.contains('big') ||
+        storeNameLower.contains('ben')) {
       return 'B.I.G Malaysia';
     } else {
       // Default: use store name as-is
@@ -718,17 +787,21 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       final mapsUrl = Uri.parse(
         'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(searchQuery)}',
       );
-      
-      debugPrint('🗺️ Opening Google Maps for nearest $storeName: $searchQuery');
-      
+
+      debugPrint(
+        '🗺️ Opening Google Maps for nearest $storeName: $searchQuery',
+      );
+
       if (await canLaunchUrl(mapsUrl)) {
         await launchUrl(mapsUrl, mode: LaunchMode.externalApplication);
         debugPrint('✅ Successfully opened Google Maps');
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Showing nearest $storeName locations on Google Maps'),
+              content: Text(
+                'Showing nearest $storeName locations on Google Maps',
+              ),
               duration: const Duration(seconds: 2),
               backgroundColor: Colors.green,
             ),
@@ -738,7 +811,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Cannot open Google Maps. Please check your internet connection.'),
+              content: Text(
+                'Cannot open Google Maps. Please check your internet connection.',
+              ),
               duration: Duration(seconds: 3),
             ),
           );
@@ -760,7 +835,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   Future<void> _openStoreUrl(String? url, String storeName) async {
     // If no URL provided, directly open Google Maps
     if (url == null || url.isEmpty) {
-      debugPrint('⚠️ No store URL available, opening Google Maps for nearest store');
+      debugPrint(
+        '⚠️ No store URL available, opening Google Maps for nearest store',
+      );
       await _openNearestStoreOnMaps(storeName);
       return;
     }
@@ -771,18 +848,15 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       if (!url.startsWith('http://') && !url.startsWith('https://')) {
         finalUrl = 'https://$url';
       }
-      
+
       debugPrint('🌐 Attempting to open store URL: $finalUrl');
-      
+
       final uri = Uri.parse(finalUrl);
-      
+
       // Check if URL can be launched
       if (await canLaunchUrl(uri)) {
         try {
-          await launchUrl(
-            uri,
-            mode: LaunchMode.externalApplication,
-          );
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
           debugPrint('✅ Successfully opened URL: $finalUrl');
           return; // Success, exit early
         } catch (e) {
@@ -793,11 +867,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         debugPrint('⚠️ URL cannot be launched, falling back to Google Maps');
         // Fall through to Google Maps fallback
       }
-      
+
       // If we reach here, the URL couldn't be opened - fallback to Google Maps
       debugPrint('🗺️ Falling back to Google Maps for nearest $storeName');
       await _openNearestStoreOnMaps(storeName);
-      
     } catch (e) {
       debugPrint('❌ Error opening store URL: $e');
       // On any error, try Google Maps as fallback
@@ -808,18 +881,28 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   @override
   Widget build(BuildContext context) {
     // Calculate price statistics
-    final prices = _stores.map((s) {
-      final priceStr = s.price.replaceAll(RegExp(r'[^\d.]'), '');
-      return double.tryParse(priceStr) ?? 0.0;
-    }).where((p) => p > 0).toList();
-    
-    final lowestPrice = prices.isNotEmpty ? prices.reduce((a, b) => a < b ? a : b) : 0.0;
-    final averagePrice = prices.isNotEmpty ? prices.reduce((a, b) => a + b) / prices.length : 0.0;
+    final prices = _stores
+        .map((s) {
+          final priceStr = s.price.replaceAll(RegExp(r'[^\d.]'), '');
+          return double.tryParse(priceStr) ?? 0.0;
+        })
+        .where((p) => p > 0)
+        .toList();
+
+    final lowestPrice = prices.isNotEmpty
+        ? prices.reduce((a, b) => a < b ? a : b)
+        : 0.0;
+    final averagePrice = prices.isNotEmpty
+        ? prices.reduce((a, b) => a + b) / prices.length
+        : 0.0;
     final usualPrice = averagePrice; // Use average as "usually" price
-    
+
     // Get product unit for per-unit price calculation
-    final productUnit = _productData?['unit'] as String? ?? _product['subtitle'] as String? ?? '';
-    
+    final productUnit =
+        _productData?['unit'] as String? ??
+        _product['subtitle'] as String? ??
+        '';
+
     return Scaffold(
       backgroundColor: kProductBackground,
       appBar: AppBar(
@@ -882,19 +965,18 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   Widget _buildProductImage() {
     // Use real product image if available, otherwise fallback to hardcoded
     final imageUrl = _productImageUrl ?? _product['image'] as String? ?? '';
-    
-    debugPrint('🖼️ Building product image. URL: $imageUrl, Has URL: ${imageUrl.isNotEmpty}');
-    
+
+    debugPrint(
+      '🖼️ Building product image. URL: $imageUrl, Has URL: ${imageUrl.isNotEmpty}',
+    );
+
     return Container(
       height: 300,
       decoration: BoxDecoration(
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [
-            Colors.grey[100]!,
-            Colors.grey[200]!,
-          ],
+          colors: [Colors.grey[100]!, Colors.grey[200]!],
         ),
         borderRadius: BorderRadius.circular(16),
       ),
@@ -903,7 +985,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
           Center(
             child: ProductImageWidget(
               imageUrl: imageUrl,
-              productName: (_product as Map<String, dynamic>?)?['name'] as String? ?? 'Product',
+              productName:
+                  (_product as Map<String, dynamic>?)?['name'] as String? ??
+                  'Product',
               brand: (_product as Map<String, dynamic>?)?['brand'] as String?,
               fit: BoxFit.contain,
               borderRadius: 16.0,
@@ -946,9 +1030,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
 
   Widget _buildProductHeader() {
     final brand = _productData?['brand'] as String?;
-    final productName = _productData?['name'] as String? ?? _product['name'] as String;
-    final unit = _productData?['unit'] as String? ?? _product['subtitle'] as String? ?? '';
-    
+    final productName =
+        _productData?['name'] as String? ?? _product['name'] as String;
+    final unit =
+        _productData?['unit'] as String? ??
+        _product['subtitle'] as String? ??
+        '';
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -1039,11 +1127,7 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   ],
                 ),
               ),
-              Container(
-                width: 1,
-                height: 40,
-                color: kBorderGray,
-              ),
+              Container(width: 1, height: 40, color: kBorderGray),
               Expanded(
                 child: Padding(
                   padding: const EdgeInsets.only(left: 16),
@@ -1131,18 +1215,28 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
     );
   }
 
-  Widget _buildTrolleyStoreCard(StorePrice store, String productUnit, bool isCheapest) {
+  Widget _buildTrolleyStoreCard(
+    StorePrice store,
+    String productUnit,
+    bool isCheapest,
+  ) {
     // Parse prices
     final priceStr = store.price.replaceAll(RegExp(r'[^\d.]'), '');
     final price = double.tryParse(priceStr) ?? 0.0;
-    final originalPriceStr = store.originalPrice?.replaceAll(RegExp(r'[^\d.]'), '') ?? '';
-    final originalPrice = originalPriceStr.isNotEmpty ? double.tryParse(originalPriceStr) : null;
-    
+    final originalPriceStr =
+        store.originalPrice?.replaceAll(RegExp(r'[^\d.]'), '') ?? '';
+    final originalPrice = originalPriceStr.isNotEmpty
+        ? double.tryParse(originalPriceStr)
+        : null;
+
     // Calculate per-unit price if unit is available
     String? perUnitPrice;
     if (productUnit.isNotEmpty && price > 0) {
       // Extract numeric value from unit (e.g., "500g" -> 500, "1kg" -> 1000)
-      final unitMatch = RegExp(r'(\d+(?:\.\d+)?)\s*(kg|g|l|ml|piece|pieces)', caseSensitive: false).firstMatch(productUnit);
+      final unitMatch = RegExp(
+        r'(\d+(?:\.\d+)?)\s*(kg|g|l|ml|piece|pieces)',
+        caseSensitive: false,
+      ).firstMatch(productUnit);
       if (unitMatch != null) {
         final unitValue = double.tryParse(unitMatch.group(1) ?? '') ?? 0;
         final unitType = unitMatch.group(2)?.toLowerCase() ?? '';
@@ -1155,14 +1249,16 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
         }
       }
     }
-    
+
     return Container(
       margin: const EdgeInsets.only(bottom: 12),
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: kCardBg,
         borderRadius: BorderRadius.circular(12),
-        border: isCheapest ? Border.all(color: kProductRed, width: 2) : Border.all(color: kBorderGray),
+        border: isCheapest
+            ? Border.all(color: kProductRed, width: 2)
+            : Border.all(color: kBorderGray),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.03),
@@ -1253,7 +1349,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                   style: ElevatedButton.styleFrom(
                     backgroundColor: kProductRed,
                     foregroundColor: kProductWhite,
-                    padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 16),
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 12,
+                      horizontal: 16,
+                    ),
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(8),
                     ),
@@ -1277,9 +1376,10 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   }
 
   Widget _buildProductDetailsSection() {
-    final description = _productData?['description'] as String? ?? 
-                       'High quality product from trusted stores.';
-    
+    final description =
+        _productData?['description'] as String? ??
+        'High quality product from trusted stores.';
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1316,9 +1416,13 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
   }
 
   Widget _buildReviewsSection() {
-    final rating = _productData?['rating'] as double? ?? _product['rating'] as double? ?? 0.0;
-    final reviewCount = _productData?['reviews'] as int? ?? _product['reviews'] as int? ?? 0;
-    
+    final rating =
+        _productData?['rating'] as double? ??
+        _product['rating'] as double? ??
+        0.0;
+    final reviewCount =
+        _productData?['reviews'] as int? ?? _product['reviews'] as int? ?? 0;
+
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1371,7 +1475,6 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
       ),
     );
   }
-
 
   Widget _buildTargetPriceModal() {
     return Container(
@@ -1463,11 +1566,11 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                     onPressed: _isSavingWishlist
                         ? null
                         : () {
-                      setState(() {
-                        _showTargetPriceModal = false;
+                            setState(() {
+                              _showTargetPriceModal = false;
                               _targetPriceController.clear();
-                      });
-                    },
+                            });
+                          },
                     style: OutlinedButton.styleFrom(
                       side: const BorderSide(color: kBorderGray),
                       padding: const EdgeInsets.symmetric(vertical: 14),
@@ -1489,7 +1592,9 @@ class _ProductDetailsScreenState extends State<ProductDetailsScreen> {
                 const SizedBox(width: 12),
                 Expanded(
                   child: ElevatedButton(
-                    onPressed: (_canSetAlert && !_isSavingWishlist) ? _handleSetTargetPrice : null,
+                    onPressed: (_canSetAlert && !_isSavingWishlist)
+                        ? _handleSetTargetPrice
+                        : null,
                     style: ElevatedButton.styleFrom(
                       backgroundColor: kProductRed,
                       foregroundColor: kProductWhite,
