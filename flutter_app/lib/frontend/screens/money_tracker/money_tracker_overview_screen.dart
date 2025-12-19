@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'add_expense_screen.dart';
+import 'upload_receipt_screen.dart';
 import '../wishlist/notifications_log_screen.dart';
 import '../../widgets/bottom_navigation_bar.dart';
 import '../../../backend/services/expense_tracking_service.dart';
 import '../../../backend/services/receipt_ocr_service.dart';
+import '../../../backend/models/expense_tracking.dart';
 
 // Figma Design Colors
 const Color kExpenseRed = Color(0xFFE85D5D);
@@ -64,50 +65,251 @@ class _MoneyTrackerOverviewScreenState
   final ExpenseTrackingService _expenseService = ExpenseTrackingService();
   final ReceiptOcrService _receiptService = ReceiptOcrService();
 
-  final double _totalExpenses = 450.0;
+  double _totalExpenses = 0.0;
+  List<CategoryData> _categoryData = [];
+  List<Map<String, dynamic>> _priceHistoryData = [];
+  List<RecentExpense> _recentExpenses = [];
+  bool _isLoading = true;
 
-  final List<CategoryData> _categoryData = [
-    CategoryData(name: 'Groceries', value: 180, color: kExpenseRed),
-    CategoryData(name: 'Utilities', value: 120, color: const Color(0xFF4A90E2)),
-    CategoryData(name: 'Transport', value: 85.5, color: const Color(0xFF50C878)),
-    CategoryData(name: 'Others', value: 64.5, color: const Color(0xFFF5A623)),
-  ];
-
-  final List<Map<String, dynamic>> _priceHistoryData = [
-    {'day': '1', 'value': 40},
-    {'day': '50', 'value': 35},
-    {'day': '100', 'value': 42},
-    {'day': '150', 'value': 38},
-    {'day': '200', 'value': 45},
-    {'day': '250', 'value': 50},
-    {'day': '300', 'value': 48},
-  ];
-
-  final List<RecentExpense> _recentExpenses = [
-    RecentExpense(
-      id: '1',
-      store: 'Whole Foods',
-      category: 'Groceries',
-      amount: -85.5,
-      date: 'Today',
-      icon: '🥬',
-    ),
-    RecentExpense(
-      id: '2',
-      store: 'Transport',
-      category: 'Utilities',
-      amount: -85.5,
-      date: 'Yesterday',
-      icon: '🚗',
-    ),
-  ];
-
-  void _onAddExpense() {
-    Navigator.push(
-      context,
-      MaterialPageRoute(builder: (context) => const AddExpenseScreen()),
-    );
+  @override
+  void initState() {
+    super.initState();
+    _loadExpenses();
   }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    // Reload expenses when screen becomes visible again
+    _loadExpenses();
+  }
+
+  Future<void> _loadExpenses() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _totalExpenses = 0.0;
+        _categoryData = [];
+        _recentExpenses = [];
+        _priceHistoryData = [];
+        _isLoading = false;
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final now = DateTime.now();
+      DateTime? startDate;
+      
+      switch (_selectedPeriod) {
+        case 'Today':
+          startDate = DateTime(now.year, now.month, now.day);
+          break;
+        case 'This Week':
+          startDate = now.subtract(Duration(days: now.weekday - 1));
+          startDate = DateTime(startDate.year, startDate.month, startDate.day);
+          break;
+        case 'This Month':
+          startDate = DateTime(now.year, now.month, 1);
+          break;
+        case 'This Year':
+          startDate = DateTime(now.year, 1, 1);
+          break;
+      }
+
+      final expenses = await _expenseService.getUserExpenses(
+        user.uid,
+        startDate: startDate,
+        endDate: now,
+        limit: 1000,
+      );
+
+      // Add mock data for demonstration
+      final List<ExpenseTracking> allExpenses = List.from(expenses);
+      
+      // RM20 spent today at NSK Grocer
+      final today = DateTime(now.year, now.month, now.day);
+      allExpenses.add(ExpenseTracking(
+        id: 'mock_nsk_today',
+        userId: user.uid,
+      category: 'Groceries',
+        amount: 20.0,
+        currency: 'MYR',
+        description: 'Grocery shopping at NSK Grocer',
+        date: today,
+        storeName: 'NSK Grocer',
+        tags: ['mock', 'groceries'],
+        createdAt: today,
+        updatedAt: today,
+      ));
+
+      // RM100 spent last week at Jaya Grocer
+      final lastWeek = now.subtract(Duration(days: now.weekday + 3)); // Last week
+      final lastWeekDate = DateTime(lastWeek.year, lastWeek.month, lastWeek.day);
+      allExpenses.add(ExpenseTracking(
+        id: 'mock_jaya_lastweek',
+        userId: user.uid,
+        category: 'Groceries',
+        amount: 100.0,
+        currency: 'MYR',
+        description: 'Weekly grocery shopping at Jaya Grocer',
+        date: lastWeekDate,
+        storeName: 'Jaya Grocer',
+        tags: ['mock', 'groceries'],
+        createdAt: lastWeekDate,
+        updatedAt: lastWeekDate,
+      ));
+
+      // Calculate total expenses
+      final total = allExpenses.fold(0.0, (sum, expense) => sum + expense.amount);
+      
+      // Calculate store breakdown (group by grocery store)
+      final Map<String, double> storeMap = {};
+      for (var expense in allExpenses) {
+        final storeName = expense.storeName ?? 'Other';
+        storeMap[storeName] = (storeMap[storeName] ?? 0.0) + expense.amount;
+      }
+
+      final categoryData = storeMap.entries.map((entry) {
+        Color storeColor;
+        final storeName = entry.key.toLowerCase();
+        if (storeName.contains('nsk')) {
+          storeColor = const Color(0xFF8B4513);
+        } else if (storeName.contains('tesco')) {
+          storeColor = const Color(0xFF0066CC);
+        } else if (storeName.contains('jaya') || storeName.contains('jayagrocer')) {
+          storeColor = const Color(0xFF50C878);
+        } else if (storeName.contains('lotus')) {
+          storeColor = const Color(0xFFE91E63);
+        } else if (storeName.contains('aeon')) {
+          storeColor = const Color(0xFF4A90E2);
+        } else if (storeName.contains('mydin')) {
+          storeColor = const Color(0xFFFF6B35);
+        } else if (storeName.contains('village')) {
+          storeColor = kExpenseRed;
+        } else {
+          storeColor = const Color(0xFF808080);
+        }
+        return CategoryData(
+          name: entry.key,
+          value: entry.value,
+          color: storeColor,
+        );
+      }).toList();
+      
+      // Sort by amount (highest first)
+      categoryData.sort((a, b) => b.value.compareTo(a.value));
+
+      // Get recent expenses (last 5) - sorted by date (most recent first)
+      final sortedExpenses = List<ExpenseTracking>.from(allExpenses)
+        ..sort((a, b) => b.date.compareTo(a.date));
+      
+      final recentExpenses = sortedExpenses.take(5).map((expense) {
+        // Get icon based on store name
+        String icon = '🛒';
+        final storeName = (expense.storeName ?? '').toLowerCase();
+        if (storeName.contains('nsk')) {
+          icon = '🛒';
+        } else if (storeName.contains('tesco')) {
+          icon = '🛒';
+        } else if (storeName.contains('jaya') || storeName.contains('jayagrocer')) {
+          icon = '🛒';
+        } else if (storeName.contains('lotus')) {
+          icon = '🛒';
+        } else if (storeName.contains('aeon')) {
+          icon = '🛒';
+        } else if (storeName.contains('mydin')) {
+          icon = '🛒';
+        } else if (storeName.contains('village')) {
+          icon = '🛒';
+        } else {
+          // Fallback to category-based icon
+          switch (expense.category.toLowerCase()) {
+            case 'groceries':
+              icon = '🥬';
+              break;
+            case 'transport':
+              icon = '🚗';
+              break;
+            case 'utilities':
+              icon = '💡';
+              break;
+            default:
+              icon = '🛒';
+          }
+        }
+
+        final expenseDate = expense.date;
+        final difference = now.difference(expenseDate);
+        String dateLabel;
+        if (difference.inMinutes < 60) {
+          dateLabel = '${difference.inMinutes}m ago';
+        } else if (difference.inHours < 24) {
+          dateLabel = '${difference.inHours}h ago';
+        } else if (difference.inDays == 0) {
+          dateLabel = 'Today';
+        } else if (difference.inDays == 1) {
+          dateLabel = 'Yesterday';
+        } else if (difference.inDays < 7) {
+          dateLabel = '${difference.inDays}d ago';
+        } else {
+          dateLabel = '${expenseDate.day}/${expenseDate.month}/${expenseDate.year}';
+        }
+
+        // Use store name if available, otherwise use description
+        final displayStore = expense.storeName?.isNotEmpty == true
+            ? expense.storeName!
+            : (expense.description.isNotEmpty ? expense.description : 'Expense');
+
+        return RecentExpense(
+          id: expense.id,
+          store: displayStore,
+          category: expense.category,
+          amount: -expense.amount,
+          date: dateLabel,
+          icon: icon,
+        );
+      }).toList();
+
+      // Generate price history data (last 7 days)
+      final priceHistoryData = <Map<String, dynamic>>[];
+      for (int i = 6; i >= 0; i--) {
+        final date = now.subtract(Duration(days: i));
+        final dayExpenses = allExpenses.where((e) {
+          return e.date.year == date.year &&
+                 e.date.month == date.month &&
+                 e.date.day == date.day;
+        }).toList();
+        final dayTotal = dayExpenses.fold(0.0, (sum, e) => sum + e.amount);
+        priceHistoryData.add({
+          'day': date.day.toString(),
+          'value': dayTotal,
+        });
+      }
+
+      setState(() {
+        _totalExpenses = total;
+        _categoryData = categoryData;
+        _recentExpenses = recentExpenses;
+        _priceHistoryData = priceHistoryData;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading expenses: $e');
+      setState(() {
+        _totalExpenses = 0.0;
+        _categoryData = [];
+        _recentExpenses = [];
+        _priceHistoryData = [];
+        _isLoading = false;
+      });
+    }
+  }
+
 
   Future<void> _handleClearAllData() async {
     // First confirmation
@@ -261,10 +463,6 @@ class _MoneyTrackerOverviewScreenState
               );
             },
           ),
-          IconButton(
-            icon: const Icon(Icons.qr_code_scanner, color: kExpenseRed),
-            onPressed: _onAddExpense,
-          ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: kTextDark),
             onSelected: (value) {
@@ -302,31 +500,39 @@ class _MoneyTrackerOverviewScreenState
               const SizedBox(height: 16),
 
               // Category Breakdown
-              _buildCategoryBreakdown(),
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : _buildCategoryBreakdown(),
+              const SizedBox(height: 16),
+
+              // Scan Receipt Button (Big, separate from period selector)
+              _buildScanReceiptButton(),
               const SizedBox(height: 16),
 
               // Price History
-              _buildPriceHistory(),
+              _isLoading
+                  ? const SizedBox.shrink()
+                  : _buildPriceHistory(),
               const SizedBox(height: 16),
 
               // Recent History
-              _buildRecentHistory(),
-              const SizedBox(height: 80), // Space for FAB
+              _isLoading
+                  ? const SizedBox.shrink()
+                  : _buildRecentHistory(),
+              const SizedBox(height: 80), // Space for bottom nav
             ],
           ),
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: _onAddExpense,
-        backgroundColor: kExpenseRed,
-        child: const Icon(Icons.add, color: kExpenseWhite),
       ),
       bottomNavigationBar: const AppBottomNavigationBar(currentIndex: 2),
     );
   }
 
   Widget _buildPeriodSelector() {
-    return Container(
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: kCardBg,
@@ -342,7 +548,9 @@ class _MoneyTrackerOverviewScreenState
       child: SingleChildScrollView(
         scrollDirection: Axis.horizontal,
         child: Row(
-          children: _periods.map((period) {
+              children: [
+                // Period filters
+                ..._periods.map((period) {
             final isSelected = _selectedPeriod == period;
             return Padding(
               padding: const EdgeInsets.only(right: 8),
@@ -367,8 +575,11 @@ class _MoneyTrackerOverviewScreenState
               ),
             );
           }).toList(),
+              ],
         ),
       ),
+        ),
+      ],
     );
   }
 
@@ -439,7 +650,7 @@ class _MoneyTrackerOverviewScreenState
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            'Nearby Tracker',
+            'Expenses by Store',
             style: TextStyle(
               fontSize: 18,
               fontWeight: FontWeight.bold,
@@ -449,7 +660,24 @@ class _MoneyTrackerOverviewScreenState
           ),
           const SizedBox(height: 16),
           // Pie Chart
-          SizedBox(
+          _categoryData.isEmpty
+              ? SizedBox(
+                  height: 200,
+                  child: Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.pie_chart_outline, size: 64, color: kTextLight),
+                        const SizedBox(height: 16),
+                        Text(
+                          'No expenses yet',
+                          style: TextStyle(color: kTextLight, fontSize: 16),
+                        ),
+                      ],
+                    ),
+                  ),
+                )
+              : SizedBox(
             height: 200,
             child: PieChart(
               PieChartData(
@@ -468,7 +696,7 @@ class _MoneyTrackerOverviewScreenState
           ),
           const SizedBox(height: 16),
           const Text(
-            'Expense List',
+            'Expenses by Store',
             style: TextStyle(
               fontSize: 16,
               fontWeight: FontWeight.w600,
@@ -477,6 +705,16 @@ class _MoneyTrackerOverviewScreenState
             ),
           ),
           const SizedBox(height: 12),
+          if (_categoryData.isEmpty)
+            Padding(
+              padding: const EdgeInsets.all(16),
+              child: Text(
+                'No expenses in this period',
+                style: TextStyle(color: kTextLight, fontSize: 14),
+                textAlign: TextAlign.center,
+              ),
+            )
+          else
           ..._categoryData.map((category) {
             return Container(
               margin: const EdgeInsets.only(bottom: 8),
@@ -641,6 +879,73 @@ class _MoneyTrackerOverviewScreenState
     );
   }
 
+  Widget _buildScanReceiptButton() {
+    return GestureDetector(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ReceiptUploadScreen(),
+          ),
+        );
+      },
+      child: Container(
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: kExpenseRed,
+          borderRadius: BorderRadius.circular(16),
+          boxShadow: [
+            BoxShadow(
+              color: kExpenseRed.withValues(alpha: 0.3),
+              blurRadius: 8,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            const Icon(
+              Icons.receipt_long,
+              color: kExpenseWhite,
+              size: 28,
+            ),
+            const SizedBox(width: 12),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  'Scan Receipt',
+                  style: TextStyle(
+                    color: kExpenseWhite,
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: 'Roboto',
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'Upload e-receipt or enter manually',
+                  style: TextStyle(
+                    color: kExpenseWhite.withValues(alpha: 0.9),
+                    fontSize: 14,
+                    fontFamily: 'Roboto',
+                  ),
+                ),
+              ],
+            ),
+            const Spacer(),
+            const Icon(
+              Icons.arrow_forward_ios,
+              color: kExpenseWhite,
+              size: 20,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Widget _buildRecentHistory() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -655,6 +960,47 @@ class _MoneyTrackerOverviewScreenState
           ),
         ),
         const SizedBox(height: 12),
+        if (_recentExpenses.isEmpty)
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: kCardBg,
+              borderRadius: BorderRadius.circular(12),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.05),
+                  blurRadius: 4,
+                  offset: const Offset(0, 2),
+                ),
+              ],
+            ),
+            child: Center(
+              child: Column(
+                children: [
+                  Icon(Icons.receipt_long_outlined, size: 48, color: kTextLight),
+                  const SizedBox(height: 12),
+                  Text(
+                    'No recent expenses',
+                    style: TextStyle(
+                      color: kTextLight,
+                      fontSize: 14,
+                      fontFamily: 'Roboto',
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'Add expenses to see them here',
+                    style: TextStyle(
+                      color: kTextLight.withValues(alpha: 0.7),
+                      fontSize: 12,
+                      fontFamily: 'Roboto',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
         ..._recentExpenses.map((expense) {
           return Container(
             margin: const EdgeInsets.only(bottom: 12),

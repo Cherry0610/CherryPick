@@ -107,12 +107,21 @@ class _SignUpScreenState extends State<SignUpScreen>
 
         if (!mounted) return;
 
+        // Show success message
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Account created successfully. Please sign in.'),
-            duration: Duration(seconds: 4),
+            content: Text(
+              'Account created successfully! Redirecting to login...',
+            ),
+            duration: Duration(seconds: 2),
+            backgroundColor: Colors.green,
           ),
         );
+
+        // Navigate to login screen after a brief delay to show success message
+        await Future.delayed(const Duration(milliseconds: 1500));
+
+        if (!mounted) return;
 
         Navigator.of(context).pushReplacement(
           MaterialPageRoute(builder: (context) => const SignInScreen()),

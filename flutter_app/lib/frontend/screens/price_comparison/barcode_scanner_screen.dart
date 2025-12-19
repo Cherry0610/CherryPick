@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 import 'package:camera/camera.dart';
 
-// Modern Black & White Theme
-const Color kBlack = Color(0xFF000000);
+// App Theme Colors
+const Color kScannerRed = Color(0xFFE85D5D); // Primary red
+const Color kScannerRedDark = Color(0xFFD94C4C); // Darker red
+const Color kScannerRedLight = Color(0xFFF28D7F); // Light red
 const Color kWhite = Color(0xFFFFFFFF);
 const Color kDarkGray = Color(0xFF1A1A1A);
 const Color kLightGray = Color(0xFFF5F5F5);
 const Color kMediumGray = Color(0xFF808080);
+const Color kScannerBackground = Color(0xFF1A1A1A); // Dark background for camera
 
 class BarcodeScannerScreen extends StatefulWidget {
   const BarcodeScannerScreen({super.key});
@@ -60,7 +63,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kBlack,
+      backgroundColor: kScannerBackground,
       appBar: AppBar(
         backgroundColor: Colors.transparent,
         elevation: 0,
@@ -93,7 +96,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
               padding: const EdgeInsets.all(20),
               margin: const EdgeInsets.symmetric(horizontal: 40),
               decoration: BoxDecoration(
-                color: kBlack.withValues(alpha: 0.8),
+                color: kScannerRedDark.withValues(alpha: 0.9),
                 borderRadius: BorderRadius.circular(16),
               ),
               child: Column(
@@ -140,10 +143,10 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                     }
                   }
                 },
-                backgroundColor: kWhite,
+                backgroundColor: kScannerRed,
                 child: Icon(
                   _isFlashOn ? Icons.flash_off : Icons.flash_on,
-                  color: kBlack,
+                  color: kWhite,
                 ),
               ),
             ),
@@ -207,8 +210,8 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
                 }
               },
               style: ElevatedButton.styleFrom(
-                backgroundColor: kWhite,
-                foregroundColor: kBlack,
+                backgroundColor: kScannerRed,
+                foregroundColor: kWhite,
                 padding: const EdgeInsets.symmetric(
                   horizontal: 40,
                   vertical: 16,
@@ -237,7 +240,7 @@ class ScannerOverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = kBlack.withValues(alpha: 0.6)
+      ..color = kScannerRedDark.withValues(alpha: 0.7)
       ..style = PaintingStyle.fill;
 
     final path = Path()..addRect(Rect.fromLTWH(0, 0, size.width, size.height));
@@ -264,7 +267,7 @@ class ScannerOverlayPainter extends CustomPainter {
 
     // Draw corner indicators
     final cornerPaint = Paint()
-      ..color = kWhite
+      ..color = kScannerRed
       ..strokeWidth = 4
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round;

@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
 import '../models/receipt.dart';
 import '../models/product.dart';
 import '../models/price.dart';
@@ -18,7 +20,54 @@ class ReceiptOcrService {
   final PriceComparisonService _priceService = PriceComparisonService();
   final ExpenseTrackingService _expenseService = ExpenseTrackingService();
 
-  /// Process receipt image and extract product data
+  /// Extract receipt data from image without saving (for preview)
+  Future<Map<String, dynamic>> extractReceiptData({
+    required XFile imageFile,
+    String? storeName,
+    DateTime? purchaseDate,
+  }) async {
+    try {
+      debugPrint('📸 Extracting receipt data: ${imageFile.path}');
+
+      // 1. Extract text from receipt
+      final extractedText = await _extractTextFromImage(imageFile);
+
+      // 2. Parse receipt data from extracted text
+      final receiptData = _parseReceiptText(extractedText);
+
+      // 3. Use provided store name or extracted one
+      final storeNameFinal = storeName ?? receiptData['storeName'] ?? 'Unknown Store';
+
+      // 4. Create receipt items
+      final receiptItems = (receiptData['items'] as List<dynamic>?)
+          ?.map((item) => {
+                'productName': item['productName'] as String,
+                'price': (item['price'] as num).toDouble(),
+                'quantity': item['quantity'] as int? ?? 1,
+                'category': item['category'] as String?,
+              })
+          .toList() ?? [];
+
+      return {
+        'storeName': storeNameFinal,
+        'totalAmount': receiptData['totalAmount'] ?? 0.0,
+        'purchaseDate': purchaseDate ?? receiptData['purchaseDate'] ?? DateTime.now(),
+        'items': receiptItems,
+        'ocrText': extractedText,
+      };
+    } catch (e) {
+      debugPrint('❌ Error extracting receipt data: $e');
+      return {
+        'storeName': storeName ?? 'Unknown Store',
+        'totalAmount': 0.0,
+        'purchaseDate': purchaseDate ?? DateTime.now(),
+        'items': <Map<String, dynamic>>[],
+        'ocrText': '',
+      };
+    }
+  }
+
+  /// Process receipt image and extract product data (saves to Firebase)
   Future<Receipt> processReceipt({
     required XFile imageFile,
     required String userId,
@@ -137,45 +186,74 @@ class ReceiptOcrService {
     }
   }
 
-  /// Extract text from receipt image
-  /// Note: For production, use Firebase ML Kit Text Recognition
-  /// This is a placeholder that would use the actual ML Kit API
+  /// Extract text from receipt image using Google ML Kit
+  /// Includes image quality checks and error handling
   Future<String> _extractTextFromImage(XFile imageFile) async {
+    TextRecognizer? textRecognizer;
     try {
-      // TODO: Implement Firebase ML Kit Text Recognition
-      // For now, return placeholder text
-      // In production, use:
-      // final inputImage = InputImage.fromFilePath(imageFile.path);
-      // final textRecognizer = TextRecognizer();
-      // final recognizedText = await textRecognizer.processImage(inputImage);
-      // return recognizedText.text;
+      debugPrint('📝 Starting OCR processing: ${imageFile.path}');
       
-      debugPrint('📝 Extracting text from receipt image...');
+      // Check if image file exists
+      final file = File(imageFile.path);
+      if (!await file.exists()) {
+        debugPrint('❌ Image file does not exist: ${imageFile.path}');
+        return '';
+      }
+
+      // Check file size (too large images may cause issues)
+      final fileSize = await file.length();
+      if (fileSize > 10 * 1024 * 1024) { // 10MB limit
+        debugPrint('⚠️ Image file is too large: ${fileSize / 1024 / 1024}MB');
+      }
+
+      // Initialize text recognizer
+      textRecognizer = TextRecognizer(script: TextRecognitionScript.latin);
       
-      // Placeholder - replace with real ML Kit implementation
-      return '''
-STORE NAME: TESCO MALAYSIA
-DATE: ${DateTime.now().toString().split(' ').first}
-TIME: ${DateTime.now().toString().split(' ').last}
-
-ITEMS:
-1. RICE 5KG          RM 25.90
-2. MILK 1L           RM 6.50
-3. BREAD WHITE       RM 3.20
-4. EGGS 10PCS        RM 8.90
-5. CHICKEN 1KG       RM 15.50
-
-SUBTOTAL:           RM 60.00
-TAX:                RM 0.00
-TOTAL:              RM 60.00
-      ''';
-    } catch (e) {
-      debugPrint('❌ Error extracting text: $e');
+      // Create input image from file path
+      final inputImage = InputImage.fromFilePath(imageFile.path);
+      
+      // Process image with OCR
+      debugPrint('🔍 Processing image with ML Kit...');
+      final recognizedText = await textRecognizer.processImage(inputImage);
+      
+      // Extract text from recognized blocks
+      String extractedText = recognizedText.text;
+      
+      // Log statistics
+      debugPrint('✅ OCR completed successfully');
+      debugPrint('📊 Text blocks found: ${recognizedText.blocks.length}');
+      debugPrint('📝 Total characters: ${extractedText.length}');
+      
+      // If text is too short, it might be a low-quality scan
+      if (extractedText.length < 10) {
+        debugPrint('⚠️ Warning: Very short text extracted (${extractedText.length} chars). Image quality may be low.');
+      }
+      
+      // Clean up recognizer
+      await textRecognizer.close();
+      
+      return extractedText;
+    } on PlatformException catch (e) {
+      debugPrint('❌ Platform error during OCR: ${e.message}');
+      debugPrint('💡 This might be due to missing ML Kit dependencies');
       return '';
+    } catch (e) {
+      debugPrint('❌ Error processing receipt image: $e');
+      debugPrint('💡 Falling back to manual entry');
+      return '';
+    } finally {
+      // Ensure recognizer is closed even if error occurs
+      try {
+        await textRecognizer?.close();
+      } catch (e) {
+        debugPrint('⚠️ Error closing text recognizer: $e');
+      }
     }
   }
 
   /// Parse receipt text and extract structured data
+  /// Handles various receipt formats from Malaysian stores
+  /// Improved with better pattern matching and confidence scoring
   Map<String, dynamic> _parseReceiptText(String text) {
     final Map<String, dynamic> result = {
       'storeName': 'Unknown Store',
@@ -185,54 +263,130 @@ TOTAL:              RM 60.00
     };
 
     try {
+      if (text.isEmpty) {
+        debugPrint('⚠️ Empty text received from OCR');
+        return result;
+      }
+
+      // Preprocess text: normalize whitespace and clean up
+      text = _preprocessReceiptText(text);
+      debugPrint('📄 Preprocessed text length: ${text.length}');
+
       final lines = text.split('\n');
       String? storeName;
       double? totalAmount;
       DateTime? purchaseDate;
+      final List<String> itemLines = [];
 
-      for (var line in lines) {
+      // Common Malaysian store names to detect
+      final storePatterns = [
+        'TESCO', 'AEON', 'GIANT', 'LOTUS', 'MYDIN', 'NSK', 'JAYA GROCER',
+        'VILLAGE GROCER', 'COLD STORAGE', '99 SPEEDMART', 'ECONSAVE',
+        'HERO MARKET', 'THE STORE', 'PACIFIC', 'BIG', 'BEN\'S'
+      ];
+
+      for (var i = 0; i < lines.length; i++) {
+        final line = lines[i];
         final trimmed = line.trim();
+        final upperTrimmed = trimmed.toUpperCase();
         
-        // Extract store name
-        if (trimmed.contains('STORE') || trimmed.contains('STORE NAME:')) {
-          storeName = trimmed.split(':').last.trim();
-        }
-        
-        // Extract date
-        if (trimmed.contains('DATE:')) {
-          try {
-            final dateStr = trimmed.split(':').last.trim();
-            purchaseDate = DateTime.tryParse(dateStr);
-          } catch (e) {
-            // Ignore parse errors
+        if (trimmed.isEmpty) continue;
+
+        // Extract store name (usually in first few lines)
+        if (i < 5 && storeName == null) {
+          for (var pattern in storePatterns) {
+            if (upperTrimmed.contains(pattern)) {
+              storeName = trimmed;
+              // Try to get full store name from next line if available
+              if (i + 1 < lines.length) {
+                final nextLine = lines[i + 1].trim();
+                if (nextLine.isNotEmpty && nextLine.length < 50) {
+                  storeName = '$trimmed $nextLine';
+                }
+              }
+              break;
+            }
           }
         }
         
-        // Extract total
-        if (trimmed.toUpperCase().contains('TOTAL:') && 
-            !trimmed.toUpperCase().contains('SUBTOTAL')) {
-          final totalStr = trimmed.split(':').last.trim();
-          final amountStr = totalStr.replaceAll(RegExp(r'[^\d.]'), '');
-          totalAmount = double.tryParse(amountStr);
+        // Extract date (various formats)
+        if (purchaseDate == null) {
+          // Look for date patterns: DD/MM/YYYY, DD-MM-YYYY, DD.MM.YYYY
+          final datePattern = RegExp(r'(\d{1,2})[/\-\.](\d{1,2})[/\-\.](\d{2,4})');
+          final dateMatch = datePattern.firstMatch(trimmed);
+          if (dateMatch != null) {
+            try {
+              final day = int.parse(dateMatch.group(1)!);
+              final month = int.parse(dateMatch.group(2)!);
+              final yearStr = dateMatch.group(3)!;
+              final year = yearStr.length == 2 ? 2000 + int.parse(yearStr) : int.parse(yearStr);
+              purchaseDate = DateTime(year, month, day);
+            } catch (e) {
+              // Try parsing as ISO date
+              purchaseDate = DateTime.tryParse(trimmed);
+            }
+          }
         }
         
-        // Extract items (lines with product names and prices)
-        if (trimmed.contains('RM ') && 
-            !trimmed.contains('TOTAL') && 
-            !trimmed.contains('TAX') &&
-            !trimmed.contains('SUBTOTAL')) {
-          final itemData = _parseReceiptItem(trimmed);
-          if (itemData != null) {
-            (result['items'] as List).add(itemData);
+        // Extract total (look for "TOTAL", "AMOUNT", "GRAND TOTAL", etc.)
+        if (totalAmount == null) {
+          if (upperTrimmed.contains('TOTAL') && 
+              !upperTrimmed.contains('SUBTOTAL') &&
+              !upperTrimmed.contains('TAX')) {
+            // Try various patterns: "TOTAL: RM 123.45", "TOTAL RM123.45", "TOTAL 123.45"
+            final totalPatterns = [
+              RegExp(r'TOTAL[:\s]*RM?\s*([\d,]+\.?\d*)', caseSensitive: false),
+              RegExp(r'TOTAL[:\s]+([\d,]+\.?\d*)', caseSensitive: false),
+            ];
+            
+            for (var pattern in totalPatterns) {
+              final match = pattern.firstMatch(trimmed);
+              if (match != null) {
+                final amountStr = match.group(1)!.replaceAll(',', '');
+                totalAmount = double.tryParse(amountStr);
+                if (totalAmount != null) break;
+              }
+            }
           }
+        }
+        
+        // Detect items section (lines with prices)
+        // Items usually have: product name + price (RM X.XX)
+        final pricePattern = RegExp(r'RM\s*([\d,]+\.?\d*)', caseSensitive: false);
+        final hasPrice = pricePattern.hasMatch(trimmed);
+        
+        // Skip header lines and totals
+        if (hasPrice && 
+            !upperTrimmed.contains('TOTAL') && 
+            !upperTrimmed.contains('TAX') &&
+            !upperTrimmed.contains('SUBTOTAL') &&
+            !upperTrimmed.contains('CHANGE') &&
+            !upperTrimmed.contains('CASH') &&
+            !upperTrimmed.contains('BALANCE') &&
+            trimmed.length > 3) {
+          itemLines.add(trimmed);
         }
       }
 
-      result['storeName'] = storeName ?? 'Unknown Store';
-      result['totalAmount'] = totalAmount ?? 0.0;
+      // Parse items using enhanced parser
+      for (var itemLine in itemLines) {
+        // Try enhanced parser first
+        var itemData = _parseReceiptItemEnhanced(itemLine);
+        // Fallback to original parser if enhanced fails
+        if (itemData == null) {
+          itemData = _parseReceiptItem(itemLine);
+        }
+        if (itemData != null) {
+          (result['items'] as List).add(itemData);
+        }
+      }
+
+      result['storeName'] = storeName ?? _extractStoreNameFromText(text) ?? 'Unknown Store';
+      result['totalAmount'] = totalAmount ?? _extractTotalFromText(text);
       result['purchaseDate'] = purchaseDate ?? DateTime.now();
 
       debugPrint('📋 Parsed receipt: ${result['items'].length} items, Total: RM ${result['totalAmount']}');
+      debugPrint('🏪 Store: ${result['storeName']}');
     } catch (e) {
       debugPrint('❌ Error parsing receipt text: $e');
     }
@@ -240,29 +394,120 @@ TOTAL:              RM 60.00
     return result;
   }
 
+  /// Extract store name from text using heuristics
+  String? _extractStoreNameFromText(String text) {
+    final storePatterns = [
+      'TESCO', 'AEON', 'GIANT', 'LOTUS', 'MYDIN', 'NSK', 'JAYA GROCER',
+      'VILLAGE GROCER', 'COLD STORAGE', '99 SPEEDMART', 'ECONSAVE'
+    ];
+    
+    final lines = text.split('\n');
+    for (var i = 0; i < lines.length && i < 10; i++) {
+      final upperLine = lines[i].toUpperCase();
+      for (var pattern in storePatterns) {
+        if (upperLine.contains(pattern)) {
+          return lines[i].trim();
+        }
+      }
+    }
+    return null;
+  }
+
+  /// Extract total amount from text using various patterns
+  double _extractTotalFromText(String text) {
+    final totalPatterns = [
+      RegExp(r'TOTAL[:\s]*RM?\s*([\d,]+\.?\d*)', caseSensitive: false),
+      RegExp(r'AMOUNT[:\s]*RM?\s*([\d,]+\.?\d*)', caseSensitive: false),
+      RegExp(r'GRAND\s+TOTAL[:\s]*RM?\s*([\d,]+\.?\d*)', caseSensitive: false),
+    ];
+    
+    for (var pattern in totalPatterns) {
+      final match = pattern.firstMatch(text);
+      if (match != null) {
+        final amountStr = match.group(1)!.replaceAll(',', '');
+        final amount = double.tryParse(amountStr);
+        if (amount != null) return amount;
+      }
+    }
+    return 0.0;
+  }
+
   /// Parse individual receipt item line
+  /// Handles various formats: "PRODUCT RM 25.90", "PRODUCT 25.90", etc.
   Map<String, dynamic>? _parseReceiptItem(String line) {
     try {
-      // Pattern: "PRODUCT NAME          RM 25.90"
-      final parts = line.split('RM');
-      if (parts.length != 2) return null;
-
-      final productName = parts[0].trim();
-      final priceStr = parts[1].trim().replaceAll(RegExp(r'[^\d.]'), '');
+      // Remove common prefixes like item numbers (1., 2., etc.)
+      final cleanedLine = line.replaceAll(RegExp(r'^\d+[\.\)]\s*'), '').trim();
+      
+      // Try pattern: "PRODUCT NAME RM 25.90" or "PRODUCT NAME 25.90"
+      final pricePattern = RegExp(r'RM\s*([\d,]+\.?\d*)', caseSensitive: false);
+      final match = pricePattern.firstMatch(cleanedLine);
+      
+      if (match == null) {
+        // Try without RM prefix: "PRODUCT 25.90"
+        final numberPattern = RegExp(r'([\d,]+\.?\d{2})\s*$');
+        final numberMatch = numberPattern.firstMatch(cleanedLine);
+        if (numberMatch == null) return null;
+        
+        final priceStr = numberMatch.group(1)!.replaceAll(',', '');
+        final price = double.tryParse(priceStr);
+        if (price == null || price <= 0) return null;
+        
+        final productName = cleanedLine.substring(0, numberMatch.start).trim();
+        if (productName.isEmpty || productName.length < 2) return null;
+        
+        return {
+          'productName': productName,
+          'price': price,
+          'quantity': _extractQuantity(productName),
+          'unit': _extractUnit(productName),
+        };
+      }
+      
+      final priceStr = match.group(1)!.replaceAll(',', '');
       final price = double.tryParse(priceStr);
-
-      if (productName.isEmpty || price == null) return null;
-
+      if (price == null || price <= 0) return null;
+      
+      final productName = cleanedLine.substring(0, match.start).trim();
+      if (productName.isEmpty || productName.length < 2) return null;
+      
+      // Skip if it looks like a total line
+      if (productName.toUpperCase().contains('TOTAL') ||
+          productName.toUpperCase().contains('TAX') ||
+          productName.toUpperCase().contains('SUBTOTAL')) {
+        return null;
+      }
+      
       return {
         'productName': productName,
         'price': price,
-        'quantity': 1,
-        'unit': 'pcs',
+        'quantity': _extractQuantity(productName),
+        'unit': _extractUnit(productName),
       };
     } catch (e) {
       debugPrint('❌ Error parsing receipt item: $e');
       return null;
     }
+  }
+
+  /// Extract quantity from product name (e.g., "2x", "3 pcs")
+  int _extractQuantity(String productName) {
+    final qtyPattern = RegExp(r'(\d+)\s*[xX]');
+    final match = qtyPattern.firstMatch(productName);
+    if (match != null) {
+      return int.tryParse(match.group(1)!) ?? 1;
+    }
+    return 1;
+  }
+
+  /// Extract unit from product name (e.g., "1kg", "500ml", "10pcs")
+  String _extractUnit(String productName) {
+    final unitPattern = RegExp(r'(\d+)\s*(kg|g|ml|l|pcs|pc|pkt|pack)', caseSensitive: false);
+    final match = unitPattern.firstMatch(productName);
+    if (match != null) {
+      return match.group(2)!.toLowerCase();
+    }
+    return 'pcs';
   }
 
   /// Process receipt items and update price database
@@ -415,6 +660,172 @@ TOTAL:              RM 60.00
       debugPrint('❌ Error clearing receipts: $e');
       throw Exception('Failed to clear receipts');
     }
+  }
+
+  /// Preprocess receipt text to improve parsing accuracy
+  /// Normalizes whitespace, fixes common OCR errors, and cleans up text
+  String _preprocessReceiptText(String text) {
+    // Replace multiple spaces/newlines with single ones
+    text = text.replaceAll(RegExp(r'\s+'), ' ');
+    
+    // Fix common OCR errors
+    text = text.replaceAll(RegExp(r'[|]'), 'I'); // | to I
+    text = text.replaceAll(RegExp(r'[0O]'), '0'); // O to 0 in numbers
+    text = text.replaceAll(RegExp(r'[Il1]'), '1'); // I/l to 1 in numbers
+    
+    // Normalize line breaks
+    text = text.replaceAll(RegExp(r'\r\n'), '\n');
+    text = text.replaceAll(RegExp(r'\r'), '\n');
+    
+    // Remove excessive line breaks (more than 2 consecutive)
+    text = text.replaceAll(RegExp(r'\n{3,}'), '\n\n');
+    
+    // Trim each line
+    final lines = text.split('\n');
+    text = lines.map((line) => line.trim()).where((line) => line.isNotEmpty).join('\n');
+    
+    return text;
+  }
+
+  /// Enhanced item parsing with better pattern matching
+  /// Handles more receipt formats and edge cases
+  Map<String, dynamic>? _parseReceiptItemEnhanced(String line) {
+    try {
+      // Remove common prefixes like item numbers (1., 2., etc.)
+      String cleanedLine = line.replaceAll(RegExp(r'^\d+[\.\)]\s*'), '').trim();
+      
+      // Skip empty lines
+      if (cleanedLine.isEmpty) return null;
+      
+      // Skip header/footer lines
+      final upperLine = cleanedLine.toUpperCase();
+      if (upperLine.contains('TOTAL') ||
+          upperLine.contains('TAX') ||
+          upperLine.contains('SUBTOTAL') ||
+          upperLine.contains('CHANGE') ||
+          upperLine.contains('CASH') ||
+          upperLine.contains('BALANCE') ||
+          upperLine.contains('VOUCHER') ||
+          upperLine.contains('DISCOUNT') ||
+          upperLine.contains('PAYMENT') ||
+          upperLine.contains('RECEIPT') ||
+          upperLine.contains('INVOICE') ||
+          upperLine.contains('DATE') ||
+          upperLine.contains('TIME') ||
+          upperLine.contains('STORE') ||
+          upperLine.contains('BRANCH')) {
+        return null;
+      }
+      
+      // Try multiple price patterns
+      final pricePatterns = [
+        // Pattern 1: "PRODUCT NAME RM 25.90"
+        RegExp(r'RM\s*([\d,]+\.?\d*)', caseSensitive: false),
+        // Pattern 2: "PRODUCT NAME 25.90" (number at end)
+        RegExp(r'([\d,]+\.?\d{2})\s*$'),
+        // Pattern 3: "PRODUCT NAME @ 25.90"
+        RegExp(r'@\s*([\d,]+\.?\d*)', caseSensitive: false),
+        // Pattern 4: "PRODUCT NAME x2 25.90"
+        RegExp(r'x\d+\s+([\d,]+\.?\d*)', caseSensitive: false),
+      ];
+      
+      RegExpMatch? priceMatch;
+      int patternIndex = -1;
+      
+      for (int i = 0; i < pricePatterns.length; i++) {
+        final match = pricePatterns[i].firstMatch(cleanedLine);
+        if (match != null) {
+          priceMatch = match;
+          patternIndex = i;
+          break;
+        }
+      }
+      
+      if (priceMatch == null) return null;
+      
+      // Extract price
+      final priceStr = priceMatch.group(1)!.replaceAll(',', '').replaceAll(' ', '');
+      final price = double.tryParse(priceStr);
+      
+      if (price == null || price <= 0 || price > 100000) {
+        // Price seems invalid
+        return null;
+      }
+      
+      // Extract product name based on pattern
+      String productName;
+      if (patternIndex == 0) {
+        // Pattern 1: price is in middle or end with "RM"
+        productName = cleanedLine.substring(0, priceMatch.start).trim();
+      } else {
+        // Pattern 2-4: price is at end
+        productName = cleanedLine.substring(0, priceMatch.start).trim();
+      }
+      
+      // Clean product name
+      productName = productName
+          .replaceAll(RegExp(r'RM\s*$'), '')
+          .replaceAll(RegExp(r'@\s*$'), '')
+          .replaceAll(RegExp(r'x\d+\s*$'), '')
+          .trim();
+      
+      // Validate product name
+      if (productName.isEmpty || productName.length < 2) return null;
+      
+      // Skip if product name is just numbers
+      if (RegExp(r'^\d+$').hasMatch(productName)) return null;
+      
+      // Extract quantity and unit
+      final quantity = _extractQuantity(productName);
+      final unit = _extractUnit(productName);
+      
+      return {
+        'productName': productName,
+        'price': price,
+        'quantity': quantity,
+        'unit': unit,
+        'category': _inferCategory(productName),
+      };
+    } catch (e) {
+      debugPrint('❌ Error parsing receipt item: $e');
+      return null;
+    }
+  }
+
+  /// Infer product category from product name
+  String? _inferCategory(String productName) {
+    final upperName = productName.toUpperCase();
+    
+    // Grocery categories
+    if (upperName.contains('CHICKEN') || upperName.contains('AYAM') ||
+        upperName.contains('BEEF') || upperName.contains('DAGING') ||
+        upperName.contains('FISH') || upperName.contains('IKAN')) {
+      return 'Meat & Seafood';
+    }
+    if (upperName.contains('MILK') || upperName.contains('SUSU') ||
+        upperName.contains('CHEESE') || upperName.contains('KEJU') ||
+        upperName.contains('BUTTER') || upperName.contains('MARGARINE')) {
+      return 'Dairy';
+    }
+    if (upperName.contains('RICE') || upperName.contains('BERAS') ||
+        upperName.contains('NOODLE') || upperName.contains('MEE') ||
+        upperName.contains('BREAD') || upperName.contains('ROTI')) {
+      return 'Grains & Bakery';
+    }
+    if (upperName.contains('VEGETABLE') || upperName.contains('SAYUR') ||
+        upperName.contains('FRUIT') || upperName.contains('BUAH')) {
+      return 'Fresh Produce';
+    }
+    if (upperName.contains('DRINK') || upperName.contains('MINUMAN') ||
+        upperName.contains('JUICE') || upperName.contains('WATER')) {
+      return 'Beverages';
+    }
+    if (upperName.contains('SNACK') || upperName.contains('BISCUIT') ||
+        upperName.contains('CHIPS') || upperName.contains('CRACKER')) {
+      return 'Snacks';
+    }
+    
+    return 'Groceries'; // Default
   }
   
   /// Create expense entry from receipt

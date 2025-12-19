@@ -91,3 +91,4 @@ When users upload receipts, prices are automatically extracted and added to the 
 The app is now updated to use real prices when available, with fallback to hardcoded prices if real data isn't found.
 
 
+

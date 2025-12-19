@@ -72,3 +72,4 @@ Save your logo images with these **exact filenames**:
 
 **Note:** If you don't have the logo images yet, the app will still work - it will just show the first letter of each store name as a fallback.
 
+

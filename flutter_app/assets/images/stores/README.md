@@ -43,3 +43,4 @@ assets/
 - Make sure the filenames match exactly (case-sensitive)
 - After adding images, you may need to do a full app restart (not just hot reload)
 
+

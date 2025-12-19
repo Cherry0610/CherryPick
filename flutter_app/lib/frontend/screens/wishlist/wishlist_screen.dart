@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../price_comparison/product_details_screen.dart';
 import 'notifications_log_screen.dart';
 import '../../widgets/bottom_navigation_bar.dart';
+import '../../../backend/services/wishlist_service.dart';
+import '../../../backend/models/product.dart';
+import '../../../backend/models/price.dart';
 
 // Figma Design Colors
 const Color kWishlistRed = Color(0xFFE85D5D);
@@ -44,46 +48,120 @@ class WishlistScreen extends StatefulWidget {
 }
 
 class _WishlistScreenState extends State<WishlistScreen> {
-  List<WishlistItem> _wishlistItems = [
-    WishlistItem(
-      id: '1',
-      name: 'Organic Whole Milk',
-      image: 'https://images.unsplash.com/photo-1563636619-e9143da7973b?w=400&h=400&fit=crop',
-      currentPrice: 5.99,
-      targetPrice: 4.99,
-      priceChange: -0.5,
-      alertActive: true,
-      lastChecked: '2 hours ago',
-    ),
-    WishlistItem(
-      id: '2',
-      name: 'Fresh Salmon Fillet',
-      image: 'https://images.unsplash.com/photo-1574781330855-d0db8cc6a79c?w=400&h=400&fit=crop',
-      currentPrice: 14.99,
-      targetPrice: 12.99,
-      priceChange: 1.2,
-      alertActive: true,
-      lastChecked: '1 hour ago',
-    ),
-    WishlistItem(
-      id: '3',
-      name: 'Premium Coffee Beans',
-      image: 'https://images.unsplash.com/photo-1559056199-641a0ac8b55e?w=400&h=400&fit=crop',
-      currentPrice: 12.99,
-      targetPrice: 10.99,
-      priceChange: -0.8,
-      alertActive: false,
-      lastChecked: '30 min ago',
-    ),
-  ];
+  final WishlistService _wishlistService = WishlistService();
+  List<WishlistItem> _wishlistItems = [];
+  bool _isLoading = true;
 
-  void _removeItem(String id) {
-    setState(() {
-      _wishlistItems.removeWhere((item) => item.id == id);
-    });
+  @override
+  void initState() {
+    super.initState();
+    _loadWishlist();
   }
 
-  void _toggleAlert(String id) {
+  Future<void> _loadWishlist() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) {
+      setState(() {
+        _isLoading = false;
+        _wishlistItems = [];
+      });
+      return;
+    }
+
+    setState(() => _isLoading = true);
+
+    try {
+      final backendItems = await _wishlistService.getUserWishlist(user.uid);
+      
+      // Convert backend wishlist items to UI wishlist items
+      final List<WishlistItem> uiItems = [];
+      
+      for (var backendItem in backendItems) {
+        // Get product details and current price
+        final itemWithPrice = await _wishlistService.getWishlistItemWithPrice(backendItem.id);
+        
+        if (itemWithPrice != null) {
+          final product = itemWithPrice['product'] as Product?;
+          final lowestPrice = itemWithPrice['lowestPrice'] as Price?;
+          
+          final currentPrice = lowestPrice?.price ?? backendItem.targetPrice;
+          final priceChange = currentPrice - backendItem.targetPrice;
+          
+          uiItems.add(WishlistItem(
+            id: backendItem.id,
+            name: product?.name ?? backendItem.productName,
+            image: product?.imageUrl ?? backendItem.productImageUrl ?? '',
+            currentPrice: currentPrice,
+            targetPrice: backendItem.targetPrice,
+            priceChange: priceChange,
+            alertActive: true, // Default to true, can be managed separately
+            lastChecked: _formatLastChecked(backendItem.updatedAt),
+          ));
+        } else {
+          // Fallback if itemWithPrice is null
+          uiItems.add(WishlistItem(
+            id: backendItem.id,
+            name: backendItem.productName,
+            image: backendItem.productImageUrl ?? '',
+            currentPrice: backendItem.targetPrice,
+            targetPrice: backendItem.targetPrice,
+            priceChange: 0.0,
+            alertActive: true,
+            lastChecked: _formatLastChecked(backendItem.updatedAt),
+          ));
+        }
+      }
+      
+      setState(() {
+        _wishlistItems = uiItems;
+        _isLoading = false;
+      });
+    } catch (e) {
+      debugPrint('Error loading wishlist: $e');
+      setState(() {
+        _wishlistItems = [];
+        _isLoading = false;
+      });
+    }
+  }
+
+  String _formatLastChecked(DateTime? dateTime) {
+    if (dateTime == null) return 'Never';
+    
+    final now = DateTime.now();
+    final difference = now.difference(dateTime);
+    
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes}m ago';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours}h ago';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays}d ago';
+    } else {
+      return '${dateTime.day}/${dateTime.month}/${dateTime.year}';
+    }
+  }
+
+  Future<void> _removeItem(String id) async {
+    try {
+      await _wishlistService.removeFromWishlist(id);
+      await _loadWishlist(); // Reload wishlist
+    } catch (e) {
+      debugPrint('Error removing wishlist item: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error removing item: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _toggleAlert(String id) async {
+    // Toggle alert state in UI only for now
+    // Backend model doesn't have isAlertActive field yet
     setState(() {
       _wishlistItems = _wishlistItems.map((item) {
         if (item.id == id) {
@@ -168,17 +246,21 @@ class _WishlistScreenState extends State<WishlistScreen> {
         ],
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              // Summary Card
-              _buildSummaryCard(activeAlerts),
-              const SizedBox(height: 16),
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(),
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Summary Card
+                    _buildSummaryCard(activeAlerts),
+                    const SizedBox(height: 16),
 
-              // Wishlist Items
-              if (_wishlistItems.isNotEmpty) ...[
+                    // Wishlist Items
+                    if (_wishlistItems.isNotEmpty) ...[
                 Row(
                   mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
@@ -192,10 +274,16 @@ class _WishlistScreenState extends State<WishlistScreen> {
                       ),
                     ),
                     TextButton(
-                      onPressed: () {
-                        setState(() {
-                          _wishlistItems.clear();
-                        });
+                      onPressed: () async {
+                        // Remove all items from wishlist
+                        for (var item in _wishlistItems) {
+                          try {
+                            await _wishlistService.removeFromWishlist(item.id);
+                          } catch (e) {
+                            debugPrint('Error removing item ${item.id}: $e');
+                          }
+                        }
+                        await _loadWishlist(); // Reload wishlist
                       },
                       child: const Text(
                         'Clear All',

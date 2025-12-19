@@ -47,6 +47,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final PageController _pageController = PageController();
   int _currentPage = 0;
 
+  // Stores that we compare prices from
+  final List<String> _availableStores = [
+    'NSK Grocer',
+    'Jaya Grocer',
+    'Lotus',
+    'Mydin',
+    'AEON',
+  ];
+
   // Onboarding pages matching Figma design with gradients
   final List<OnboardingPage> _pages = [
     OnboardingPage(
@@ -209,21 +218,53 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // Icon with gradient background
-            Container(
-              width: 200,
-              height: 200,
-              decoration: BoxDecoration(
-                gradient: LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: page.gradientColors,
+            // Icon with gradient background (or store logos for price comparison page)
+            if (index == 0)
+              // First page: Show store logos
+              Column(
+                children: [
+                  Container(
+                    width: 200,
+                    height: 200,
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topLeft,
+                        end: Alignment.bottomRight,
+                        colors: page.gradientColors,
+                      ),
+                      shape: BoxShape.circle,
+                    ),
+                    padding: const EdgeInsets.all(32),
+                    child: Icon(page.icon, size: 96, color: kOnboardingWhite),
+                  ),
+                  const SizedBox(height: 32),
+                  // Store logos grid
+                  Wrap(
+                    spacing: 16,
+                    runSpacing: 16,
+                    alignment: WrapAlignment.center,
+                    children: _availableStores.map((store) {
+                      return _buildStoreLogo(store);
+                    }).toList(),
+                  ),
+                ],
+              )
+            else
+              // Other pages: Show icon only
+              Container(
+                width: 200,
+                height: 200,
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: page.gradientColors,
+                  ),
+                  shape: BoxShape.circle,
                 ),
-                shape: BoxShape.circle,
+                padding: const EdgeInsets.all(32),
+                child: Icon(page.icon, size: 96, color: kOnboardingWhite),
               ),
-              padding: const EdgeInsets.all(32),
-              child: Icon(page.icon, size: 96, color: kOnboardingWhite),
-            ),
 
             const SizedBox(height: 32),
 
@@ -258,6 +299,100 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
         ),
       ),
     );
+  }
+
+  /// Get store logo asset path
+  String? _getStoreLogoAsset(String store) {
+    switch (store) {
+      case 'Lotus':
+        return 'assets/images/stores/lotus.png';
+      case 'Jaya Grocer':
+        return 'assets/images/stores/jaya_grocer.png';
+      case 'Mydin':
+        return 'assets/images/stores/mydin.png';
+      case 'NSK Grocer':
+        return 'assets/images/stores/nsk_grocer.png';
+      case 'AEON':
+        return 'assets/images/stores/aeon.png';
+      default:
+        return null;
+    }
+  }
+
+  /// Build store logo widget for onboarding
+  Widget _buildStoreLogo(String store) {
+    final logoAsset = _getStoreLogoAsset(store);
+    final size = 60.0;
+
+    if (logoAsset != null && logoAsset.isNotEmpty) {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: kOnboardingWhite,
+          borderRadius: BorderRadius.circular(12),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withValues(alpha: 0.1),
+              blurRadius: 4,
+              offset: const Offset(0, 2),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
+          child: Padding(
+            padding: const EdgeInsets.all(8.0),
+            child: Image.asset(
+              logoAsset,
+              width: size - 16,
+              height: size - 16,
+              fit: BoxFit.contain,
+              filterQuality: FilterQuality.high,
+              errorBuilder: (context, error, stackTrace) {
+                return Container(
+                  width: size,
+                  height: size,
+                  decoration: BoxDecoration(
+                    color: kOnboardingBackground,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Center(
+                    child: Text(
+                      store.substring(0, 1).toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: kTextDark,
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ),
+      );
+    } else {
+      return Container(
+        width: size,
+        height: size,
+        decoration: BoxDecoration(
+          color: kOnboardingBackground,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Text(
+            store.substring(0, 1).toUpperCase(),
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: kTextDark,
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   Widget _buildPaginationDots() {

@@ -501,25 +501,29 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Build store logo widget
+  /// Build store logo widget (for general use)
   Widget _buildStoreLogo(String store) {
     final logoAsset = _getStoreLogoAsset(store);
     final containerSize = 50.0;
-    final padding = 8.0;
+    final padding = 4.0; // Reduced padding for clearer image
     final imageSize = containerSize - (padding * 2);
 
     if (logoAsset != null && logoAsset.isNotEmpty) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(12),
-        child: Padding(
-          padding: EdgeInsets.all(padding),
+      return Container(
+        width: containerSize,
+        height: containerSize,
+        decoration: BoxDecoration(
+          color: kHomeWhite,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(12),
           child: Image.asset(
             logoAsset,
             width: imageSize,
             height: imageSize,
-            fit: BoxFit.contain,
-            cacheWidth: imageSize.toInt(),
-            cacheHeight: imageSize.toInt(),
+            fit: BoxFit.contain, // Changed to contain for better clarity
+            filterQuality: FilterQuality.high, // High quality rendering
             errorBuilder: (context, error, stackTrace) {
               // Fallback to store name text if logo asset not found
               debugPrint('❌ Error loading logo asset: $logoAsset - $error');
@@ -560,6 +564,75 @@ class _HomeScreenState extends State<HomeScreen> {
             store.substring(0, 1).toUpperCase(),
             style: const TextStyle(
               fontSize: 18,
+              fontWeight: FontWeight.bold,
+              color: kTextDark,
+            ),
+          ),
+        ),
+      );
+    }
+  }
+
+  /// Build store logo widget for cards (larger, clearer version)
+  Widget _buildStoreLogoForCard(String store) {
+    final logoAsset = _getStoreLogoAsset(store);
+    final containerSize = 90.0;
+    final padding = 8.0;
+    final imageSize = containerSize - (padding * 2);
+
+    if (logoAsset != null && logoAsset.isNotEmpty) {
+      return Container(
+        width: containerSize,
+        height: containerSize,
+        decoration: BoxDecoration(
+          color: kHomeWhite,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Padding(
+          padding: EdgeInsets.all(padding),
+          child: Image.asset(
+            logoAsset,
+            width: imageSize,
+            height: imageSize,
+            fit: BoxFit.contain,
+            filterQuality: FilterQuality.high, // High quality rendering
+            errorBuilder: (context, error, stackTrace) {
+              debugPrint('❌ Error loading logo asset: $logoAsset - $error');
+              return Container(
+                width: containerSize,
+                height: containerSize,
+                decoration: BoxDecoration(
+                  color: kHomeBackground,
+                  borderRadius: BorderRadius.circular(12),
+                ),
+                child: Center(
+                  child: Text(
+                    store.substring(0, 1).toUpperCase(),
+                    style: const TextStyle(
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      color: kTextDark,
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+    } else {
+      return Container(
+        width: containerSize,
+        height: containerSize,
+        decoration: BoxDecoration(
+          color: kHomeBackground,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Center(
+          child: Text(
+            store.substring(0, 1).toUpperCase(),
+            style: const TextStyle(
+              fontSize: 32,
               fontWeight: FontWeight.bold,
               color: kTextDark,
             ),
@@ -616,37 +689,42 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  /// Navigate to store - try online store first, fallback to nearest physical store
+  /// Navigate to store - opens Google search for the store
   Future<void> _navigateToStore(String store) async {
-    final websiteUrl = _getStoreWebsiteUrl(store);
-
     try {
-      debugPrint('🌐 Attempting to open $store online store: $websiteUrl');
+      // Create Google search query for the store
+      final searchQuery = '$store Malaysia online grocery';
+      final googleSearchUrl =
+          'https://www.google.com/search?q=${Uri.encodeComponent(searchQuery)}';
 
-      final url = Uri.parse(websiteUrl);
+      debugPrint('🔍 Opening Google search for: $store');
 
-      // Check if URL can be launched
+      final url = Uri.parse(googleSearchUrl);
+
       if (await canLaunchUrl(url)) {
-        try {
-          await launchUrl(url, mode: LaunchMode.externalApplication);
-          debugPrint('✅ Successfully opened $store online store');
-          return; // Success, exit early
-        } catch (e) {
-          debugPrint('⚠️ Error launching URL, falling back to Google Maps: $e');
-          // Fall through to Google Maps fallback
-        }
+        await launchUrl(url, mode: LaunchMode.externalApplication);
+        debugPrint('✅ Successfully opened Google search for $store');
       } else {
-        debugPrint('⚠️ URL cannot be launched, falling back to Google Maps');
-        // Fall through to Google Maps fallback
+        debugPrint('❌ Cannot open Google search');
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Cannot open Google search for $store'),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
       }
-
-      // If we reach here, the online store couldn't be opened - fallback to Google Maps
-      debugPrint('🗺️ Falling back to Google Maps for nearest $store');
-      await _navigateToNearestStore(store);
     } catch (e) {
-      debugPrint('❌ Error opening store: $e');
-      // On any error, try Google Maps as fallback
-      await _navigateToNearestStore(store);
+      debugPrint('❌ Error opening Google search: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
     }
   }
 
@@ -1111,11 +1189,11 @@ class _HomeScreenState extends State<HomeScreen> {
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                            // Logo
+                            // Logo - larger and clearer
                             SizedBox(
                               width: 90,
                               height: 90,
-                              child: _buildStoreLogo(store),
+                              child: _buildStoreLogoForCard(store),
                             ),
                             // Store name (text below logo)
                             const SizedBox(height: 8),
@@ -1253,7 +1331,7 @@ class _HomeScreenState extends State<HomeScreen> {
     // Smaller sizes on web
     final borderRadius = kIsWeb ? 6.0 : 8.0;
     final padding = kIsWeb ? 6.0 : 8.0;
-    final fontSize = kIsWeb ? 10.0 : 12.0;
+    final fontSize = kIsWeb ? 12.0 : 16.0; // Increased from 10/12 to 12/16
     final priceFontSize = kIsWeb ? 12.0 : 14.0;
 
     // Wrap in RepaintBoundary to prevent unnecessary repaints

@@ -42,3 +42,4 @@ The logo will automatically appear on:
 - The logo has a red background container (`#D94C4C`)
 - The logo will automatically scale to fit the container while maintaining aspect ratio
 
+

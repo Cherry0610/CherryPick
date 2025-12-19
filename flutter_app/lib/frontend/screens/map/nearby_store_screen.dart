@@ -66,6 +66,8 @@ class _StoresScreenState extends State<StoresScreen> {
   bool _isLoadingLocation = false;
   bool _locationPermissionGranted = false;
   List<Store> _sortedStores = [];
+  final TextEditingController _locationController = TextEditingController();
+  bool _isManualLocation = false;
 
   final List<Store> _stores = [
     Store(
@@ -79,7 +81,8 @@ class _StoresScreenState extends State<StoresScreen> {
       hours: 'Open until 10 PM',
       rating: 4.5,
       icon: '🥬',
-      logoUrl: 'https://www.jayagrocer.com/wp-content/uploads/2020/06/jaya-grocer-logo.png',
+      logoUrl:
+          'https://www.jayagrocer.com/wp-content/uploads/2020/06/jaya-grocer-logo.png',
       color: const Color(0xFF50C878),
       onlineStoreUrl: 'https://www.jayagrocer.com',
       latitude: 3.1490,
@@ -113,7 +116,8 @@ class _StoresScreenState extends State<StoresScreen> {
       hours: 'Open until 10 PM',
       rating: 4.4,
       icon: '🏪',
-      logoUrl: 'https://www.aeon.com.my/wp-content/uploads/2020/01/aeon-logo.png',
+      logoUrl:
+          'https://www.aeon.com.my/wp-content/uploads/2020/01/aeon-logo.png',
       color: const Color(0xFF4A90E2),
       onlineStoreUrl: 'https://www.aeon.com.my',
       latitude: 3.1180,
@@ -167,10 +171,12 @@ class _StoresScreenState extends State<StoresScreen> {
   /// Get Google Maps search query for a store name
   String _getStoreMapsQuery(String storeName) {
     final storeNameLower = storeName.toLowerCase();
-    
-    if (storeNameLower.contains('nsk') || storeNameLower.contains('nsk grocer')) {
+
+    if (storeNameLower.contains('nsk') ||
+        storeNameLower.contains('nsk grocer')) {
       return 'NSK Grocer Malaysia';
-    } else if (storeNameLower.contains('jaya grocer') || storeNameLower.contains('jayagrocer')) {
+    } else if (storeNameLower.contains('jaya grocer') ||
+        storeNameLower.contains('jayagrocer')) {
       return 'Jaya Grocer Malaysia';
     } else if (storeNameLower.contains('lotus')) {
       return 'Lotus Malaysia';
@@ -184,13 +190,15 @@ class _StoresScreenState extends State<StoresScreen> {
       return 'Tesco Malaysia';
     } else if (storeNameLower.contains('giant')) {
       return 'Giant Malaysia';
-    } else if (storeNameLower.contains('speedmart') || storeNameLower.contains('99')) {
+    } else if (storeNameLower.contains('speedmart') ||
+        storeNameLower.contains('99')) {
       return '99 Speedmart Malaysia';
     } else if (storeNameLower.contains('econsave')) {
       return 'Econsave Malaysia';
     } else if (storeNameLower.contains('cold storage')) {
       return 'Cold Storage Malaysia';
-    } else if (storeNameLower.contains('big') || storeNameLower.contains('ben')) {
+    } else if (storeNameLower.contains('big') ||
+        storeNameLower.contains('ben')) {
       return 'B.I.G Malaysia';
     } else {
       return '$storeName Malaysia';
@@ -204,16 +212,20 @@ class _StoresScreenState extends State<StoresScreen> {
       final mapsUrl = Uri.parse(
         'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(searchQuery)}',
       );
-      
-      debugPrint('🗺️ Opening Google Maps for nearest $storeName: $searchQuery');
-      
+
+      debugPrint(
+        '🗺️ Opening Google Maps for nearest $storeName: $searchQuery',
+      );
+
       if (await canLaunchUrl(mapsUrl)) {
         await launchUrl(mapsUrl, mode: LaunchMode.externalApplication);
-        
+
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(
-              content: Text('Showing nearest $storeName locations on Google Maps'),
+              content: Text(
+                'Showing nearest $storeName locations on Google Maps',
+              ),
               duration: const Duration(seconds: 2),
               backgroundColor: Colors.green,
             ),
@@ -223,7 +235,9 @@ class _StoresScreenState extends State<StoresScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Cannot open Google Maps. Please check your internet connection.'),
+              content: Text(
+                'Cannot open Google Maps. Please check your internet connection.',
+              ),
               duration: Duration(seconds: 3),
             ),
           );
@@ -264,7 +278,8 @@ class _StoresScreenState extends State<StoresScreen> {
         urlString = 'https://www.giant.com.my';
       } else if (storeNameLower.contains('mydin')) {
         urlString = 'https://www.mydin.com.my';
-      } else if (storeNameLower.contains('speedmart') || storeNameLower.contains('99')) {
+      } else if (storeNameLower.contains('speedmart') ||
+          storeNameLower.contains('99')) {
         urlString = 'https://www.99speedmart.com.my';
       } else if (storeNameLower.contains('econsave')) {
         urlString = 'https://www.econsave.com.my';
@@ -272,7 +287,8 @@ class _StoresScreenState extends State<StoresScreen> {
         urlString = 'https://www.lotuss.com.my';
       } else if (storeNameLower.contains('cold storage')) {
         urlString = 'https://www.coldstorage.com.my';
-      } else if (storeNameLower.contains('big') || storeNameLower.contains('ben')) {
+      } else if (storeNameLower.contains('big') ||
+          storeNameLower.contains('ben')) {
         urlString = 'https://www.big.com.my';
       }
     }
@@ -297,7 +313,7 @@ class _StoresScreenState extends State<StoresScreen> {
         debugPrint('⚠️ URL cannot be launched, falling back to Google Maps');
         // Fall through to Google Maps fallback
       }
-      
+
       // If we reach here, the URL couldn't be opened - fallback to Google Maps
       await _openNearestStoreOnMaps(store.name);
     } catch (e) {
@@ -311,12 +327,19 @@ class _StoresScreenState extends State<StoresScreen> {
   void initState() {
     super.initState();
     _sortedStores = List.from(_stores);
+    _locationController.text = _currentLocationName;
     _requestLocationPermission();
+  }
+
+  @override
+  void dispose() {
+    _locationController.dispose();
+    super.dispose();
   }
 
   Future<void> _requestLocationPermission() async {
     setState(() => _isLoadingLocation = true);
-    
+
     try {
       // Check if location services are enabled
       bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
@@ -324,7 +347,9 @@ class _StoresScreenState extends State<StoresScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Please enable location services in your device settings'),
+              content: Text(
+                'Please enable location services in your device settings',
+              ),
               backgroundColor: Colors.orange,
             ),
           );
@@ -344,7 +369,9 @@ class _StoresScreenState extends State<StoresScreen> {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Location permission is required to find nearby stores'),
+                content: Text(
+                  'Location permission is required to find nearby stores',
+                ),
                 backgroundColor: Colors.orange,
               ),
             );
@@ -362,7 +389,9 @@ class _StoresScreenState extends State<StoresScreen> {
         if (mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
             const SnackBar(
-              content: Text('Location permission is permanently denied. Please enable it in settings.'),
+              content: Text(
+                'Location permission is permanently denied. Please enable it in settings.',
+              ),
               backgroundColor: Colors.red,
             ),
           );
@@ -416,19 +445,55 @@ class _StoresScreenState extends State<StoresScreen> {
             place.administrativeArea,
           ].where((e) => e != null && e.isNotEmpty).join(', ');
 
+          final addressText = address.isNotEmpty ? address : 'Current Location';
           setState(() {
-            _currentLocationName = address.isNotEmpty ? address : 'Current Location';
+            _currentLocationName = addressText;
+            _locationController.text = addressText;
+            _isManualLocation = false;
           });
+
+          // Show success message
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Location found: $addressText'),
+                duration: const Duration(seconds: 2),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
         } else {
-          setState(() => _currentLocationName = 'Current Location');
+          final locationText =
+              'Lat: ${position.latitude.toStringAsFixed(4)}, Lng: ${position.longitude.toStringAsFixed(4)}';
+          setState(() {
+            _currentLocationName = locationText;
+            _locationController.text = locationText;
+            _isManualLocation = false;
+          });
+
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text(
+                  'Location found. You can edit the address above.',
+                ),
+                duration: Duration(seconds: 2),
+                backgroundColor: Colors.green,
+              ),
+            );
+          }
         }
       } catch (e) {
-        setState(() => _currentLocationName = 'Current Location');
+        setState(() {
+          _currentLocationName = 'Current Location';
+          _locationController.text = 'Current Location';
+          _isManualLocation = false;
+        });
       }
 
       // Calculate distances and sort stores
       _calculateDistancesAndSort();
-      
+
       setState(() => _isLoadingLocation = false);
     } catch (e) {
       debugPrint('Error getting current location: $e');
@@ -449,12 +514,14 @@ class _StoresScreenState extends State<StoresScreen> {
     final storesWithDistance = _stores.map((store) {
       double distance = 0.0;
       if (store.latitude != null && store.longitude != null) {
-        distance = Geolocator.distanceBetween(
-          _currentPosition!.latitude,
-          _currentPosition!.longitude,
-          store.latitude!,
-          store.longitude!,
-        ) / 1000; // Convert to kilometers
+        distance =
+            Geolocator.distanceBetween(
+              _currentPosition!.latitude,
+              _currentPosition!.longitude,
+              store.latitude!,
+              store.longitude!,
+            ) /
+            1000; // Convert to kilometers
       }
       return Store(
         id: store.id,
@@ -513,9 +580,112 @@ class _StoresScreenState extends State<StoresScreen> {
           speedAccuracy: 0,
         );
         _currentLocationName = 'Custom Location';
+        _locationController.text = 'Custom Location';
+        _isManualLocation = true;
         _isLoadingLocation = false;
       });
       _calculateDistancesAndSort();
+    }
+  }
+
+  /// Search location by address using geocoding
+  Future<void> _searchLocationByAddress(String address) async {
+    if (address.trim().isEmpty) return;
+
+    setState(() {
+      _isLoadingLocation = true;
+      _currentLocationName = address;
+    });
+
+    try {
+      // Use geocoding to convert address to coordinates
+      List<Location> locations = await locationFromAddress(address);
+
+      if (locations.isNotEmpty) {
+        final location = locations.first;
+        setState(() {
+          _currentPosition = Position(
+            latitude: location.latitude,
+            longitude: location.longitude,
+            timestamp: DateTime.now(),
+            accuracy: 0,
+            altitude: 0,
+            altitudeAccuracy: 0,
+            heading: 0,
+            headingAccuracy: 0,
+            speed: 0,
+            speedAccuracy: 0,
+          );
+          _currentLocationName = address;
+          _locationController.text = address;
+          _isManualLocation = true;
+        });
+
+        // Try to get a more detailed address
+        try {
+          List<Placemark> placemarks = await placemarkFromCoordinates(
+            location.latitude,
+            location.longitude,
+          );
+
+          if (placemarks.isNotEmpty) {
+            final place = placemarks.first;
+            final detailedAddress = [
+              place.street,
+              place.subLocality,
+              place.locality,
+              place.administrativeArea,
+            ].where((e) => e != null && e.isNotEmpty).join(', ');
+
+            if (detailedAddress.isNotEmpty) {
+              setState(() {
+                _currentLocationName = detailedAddress;
+                _locationController.text = detailedAddress;
+              });
+            }
+          }
+        } catch (e) {
+          debugPrint('Error getting detailed address: $e');
+        }
+
+        // Calculate distances and sort stores
+        _calculateDistancesAndSort();
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Location set to: $address'),
+              duration: const Duration(seconds: 2),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text('Could not find location: $address'),
+              duration: const Duration(seconds: 3),
+              backgroundColor: Colors.orange,
+            ),
+          );
+        }
+      }
+    } catch (e) {
+      debugPrint('Error searching location: $e');
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error finding location: ${e.toString()}'),
+            duration: const Duration(seconds: 3),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      setState(() {
+        _isLoadingLocation = false;
+      });
     }
   }
 
@@ -587,7 +757,12 @@ class _StoresScreenState extends State<StoresScreen> {
               const SizedBox(height: 16),
 
               // Map View or List View
-              if (_viewMode) _buildMapView() else _buildListView(_sortedStores.isNotEmpty ? _sortedStores : _stores),
+              if (_viewMode)
+                _buildMapView()
+              else
+                _buildListView(
+                  _sortedStores.isNotEmpty ? _sortedStores : _stores,
+                ),
 
               const SizedBox(height: 16),
 
@@ -621,7 +796,9 @@ class _StoresScreenState extends State<StoresScreen> {
         children: [
           Icon(
             _isLoadingLocation ? Icons.location_searching : Icons.location_on,
-            color: _locationPermissionGranted ? kStoreRed : kTextLight,
+            color: (_locationPermissionGranted || _isManualLocation)
+                ? kStoreRed
+                : kTextLight,
             size: 20,
           ),
           const SizedBox(width: 12),
@@ -630,7 +807,11 @@ class _StoresScreenState extends State<StoresScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  _isLoadingLocation ? 'Getting location...' : 'Current Location',
+                  _isLoadingLocation
+                      ? 'Getting location...'
+                      : (_isManualLocation
+                            ? 'Search Location'
+                            : 'Current Location'),
                   style: const TextStyle(
                     fontSize: 12,
                     color: kTextLight,
@@ -638,39 +819,85 @@ class _StoresScreenState extends State<StoresScreen> {
                   ),
                 ),
                 const SizedBox(height: 2),
-                Text(
-                  _currentLocationName,
+                TextField(
+                  controller: _locationController,
+                  enabled: !_isLoadingLocation,
                   style: TextStyle(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: _locationPermissionGranted ? kTextDark : kTextLight,
+                    color: (_locationPermissionGranted || _isManualLocation)
+                        ? kTextDark
+                        : kTextLight,
                     fontFamily: 'Roboto',
                   ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+                  decoration: InputDecoration(
+                    hintText: _isLoadingLocation
+                        ? 'Getting location...'
+                        : 'Enter address or tap GPS button',
+                    hintStyle: TextStyle(
+                      fontSize: 14,
+                      color: kTextLight.withValues(alpha: 0.5),
+                      fontFamily: 'Roboto',
+                    ),
+                    border: InputBorder.none,
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                  ),
+                  onSubmitted: (value) {
+                    if (value.trim().isNotEmpty) {
+                      _searchLocationByAddress(value.trim());
+                    }
+                  },
+                  onChanged: (value) {
+                    // Update location name as user types
+                    if (value.isNotEmpty) {
+                      setState(() {
+                        _currentLocationName = value;
+                        _isManualLocation = true;
+                      });
+                    } else {
+                      setState(() {
+                        _isManualLocation = false;
+                      });
+                    }
+                  },
+                  onTap: () {
+                    // When user taps the field, ensure it's editable
+                    if (_locationController.text.isEmpty) {
+                      _locationController.text = '';
+                    }
+                  },
                 ),
               ],
             ),
           ),
           IconButton(
-            icon: Icon(
-              Icons.edit_location_alt,
-              color: kStoreRed,
-              size: 20,
-            ),
+            icon: Icon(Icons.edit_location_alt, color: kStoreRed, size: 20),
             onPressed: _showLocationPicker,
             tooltip: 'Set location manually',
           ),
-          if (!_locationPermissionGranted)
-            IconButton(
-              icon: const Icon(
-                Icons.refresh,
-                color: kStoreRed,
-                size: 20,
-              ),
-              onPressed: () => _requestLocationPermission(),
-              tooltip: 'Request location permission',
+          IconButton(
+            icon: Icon(
+              _isManualLocation ? Icons.my_location : Icons.refresh,
+              color: kStoreRed,
+              size: 20,
             ),
+            onPressed: _isLoadingLocation
+                ? null
+                : (_isManualLocation
+                      ? () {
+                          // Switch back to GPS location
+                          _isManualLocation = false;
+                          _requestLocationPermission();
+                        }
+                      : () {
+                          // Get current GPS location and show in bar
+                          _requestLocationPermission();
+                        }),
+            tooltip: _isManualLocation
+                ? 'Use GPS location'
+                : 'Get current location',
+          ),
         ],
       ),
     );
@@ -692,12 +919,8 @@ class _StoresScreenState extends State<StoresScreen> {
       ),
       child: Row(
         children: [
-          Expanded(
-            child: _buildToggleButton('List View', false),
-          ),
-          Expanded(
-            child: _buildToggleButton('Map View', true),
-          ),
+          Expanded(child: _buildToggleButton('List View', false)),
+          Expanded(child: _buildToggleButton('Map View', true)),
         ],
       ),
     );
@@ -735,20 +958,30 @@ class _StoresScreenState extends State<StoresScreen> {
 
   Widget _buildMapView() {
     // Calculate map bounds based on store locations
-    final storesWithLocation = _stores.where((s) => s.latitude != null && s.longitude != null).toList();
+    final storesWithLocation = _stores
+        .where((s) => s.latitude != null && s.longitude != null)
+        .toList();
     double? minLat, maxLat, minLng, maxLng;
-    
+
     if (storesWithLocation.isNotEmpty) {
-      minLat = storesWithLocation.map((s) => s.latitude!).reduce((a, b) => a < b ? a : b);
-      maxLat = storesWithLocation.map((s) => s.latitude!).reduce((a, b) => a > b ? a : b);
-      minLng = storesWithLocation.map((s) => s.longitude!).reduce((a, b) => a < b ? a : b);
-      maxLng = storesWithLocation.map((s) => s.longitude!).reduce((a, b) => a > b ? a : b);
+      minLat = storesWithLocation
+          .map((s) => s.latitude!)
+          .reduce((a, b) => a < b ? a : b);
+      maxLat = storesWithLocation
+          .map((s) => s.latitude!)
+          .reduce((a, b) => a > b ? a : b);
+      minLng = storesWithLocation
+          .map((s) => s.longitude!)
+          .reduce((a, b) => a < b ? a : b);
+      maxLng = storesWithLocation
+          .map((s) => s.longitude!)
+          .reduce((a, b) => a > b ? a : b);
     }
-    
+
     // Default to KL city center if no locations
     final centerLat = minLat != null ? (minLat + maxLat!) / 2 : 3.1390;
     final centerLng = minLng != null ? (minLng + maxLng!) / 2 : 101.6869;
-    
+
     return Container(
       height: 400,
       decoration: BoxDecoration(
@@ -769,7 +1002,7 @@ class _StoresScreenState extends State<StoresScreen> {
             onTap: () async {
               // Open Google Maps with center location
               final url = Uri.parse(
-                'https://www.google.com/maps/search/?api=1&query=$centerLat,$centerLng'
+                'https://www.google.com/maps/search/?api=1&query=$centerLat,$centerLng',
               );
               if (await canLaunchUrl(url)) {
                 await launchUrl(url, mode: LaunchMode.externalApplication);
@@ -780,10 +1013,7 @@ class _StoresScreenState extends State<StoresScreen> {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [
-                    Colors.grey[100]!,
-                    Colors.grey[200]!,
-                  ],
+                  colors: [Colors.grey[100]!, Colors.grey[200]!],
                 ),
                 borderRadius: BorderRadius.circular(16),
               ),
@@ -819,8 +1049,9 @@ class _StoresScreenState extends State<StoresScreen> {
             final store = entry.value;
             // Normalize coordinates to container size (400x400)
             final normalizedLat = ((store.latitude! - centerLat) * 10000) + 200;
-            final normalizedLng = ((store.longitude! - centerLng) * 10000) + 200;
-            
+            final normalizedLng =
+                ((store.longitude! - centerLng) * 10000) + 200;
+
             return Positioned(
               left: normalizedLng.clamp(20.0, 380.0),
               top: normalizedLat.clamp(20.0, 380.0),
@@ -844,9 +1075,7 @@ class _StoresScreenState extends State<StoresScreen> {
                       ),
                     ],
                   ),
-                  child: Center(
-                    child: _buildStoreLogo(store, size: 24),
-                  ),
+                  child: Center(child: _buildStoreLogo(store, size: 24)),
                 ),
               ),
             );
@@ -877,9 +1106,7 @@ class _StoresScreenState extends State<StoresScreen> {
                     color: store.color.withValues(alpha: 0.2),
                     borderRadius: BorderRadius.circular(12),
                   ),
-                  child: Center(
-                    child: _buildStoreLogo(store, size: 32),
-                  ),
+                  child: Center(child: _buildStoreLogo(store, size: 32)),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -896,10 +1123,7 @@ class _StoresScreenState extends State<StoresScreen> {
                       ),
                       Text(
                         store.type,
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: kTextLight,
-                        ),
+                        style: const TextStyle(fontSize: 14, color: kTextLight),
                       ),
                     ],
                   ),
@@ -1121,15 +1345,74 @@ class _StoresScreenState extends State<StoresScreen> {
     );
   }
 
+  /// Get store logo asset path based on store name
+  String? _getStoreLogoAsset(String storeName) {
+    final storeNameLower = storeName.toLowerCase();
+
+    if (storeNameLower.contains('jaya grocer') ||
+        storeNameLower.contains('jayagrocer')) {
+      return 'assets/images/stores/jaya_grocer.png';
+    } else if (storeNameLower.contains('lotus')) {
+      return 'assets/images/stores/lotus.png';
+    } else if (storeNameLower.contains('mydin')) {
+      return 'assets/images/stores/mydin.png';
+    } else if (storeNameLower.contains('nsk') ||
+        storeNameLower.contains('nsk grocer')) {
+      return 'assets/images/stores/nsk_grocer.png';
+    } else if (storeNameLower.contains('aeon')) {
+      return 'assets/images/stores/aeon.png';
+    } else if (storeNameLower.contains('tesco')) {
+      return 'assets/images/stores/tesco.png';
+    } else if (storeNameLower.contains('village grocer')) {
+      return 'assets/images/stores/village_grocer.png';
+    }
+
+    return null;
+  }
+
   Widget _buildStoreLogo(Store store, {double size = 40}) {
+    // Priority: 1. Local asset, 2. Network logo URL, 3. Fallback icon
+    final localAssetPath = _getStoreLogoAsset(store.name);
+
+    // Try local asset first
+    if (localAssetPath != null && localAssetPath.isNotEmpty) {
+      return ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: kBorderGray, width: 1),
+          ),
+          child: Image.asset(
+            localAssetPath,
+            width: size,
+            height: size,
+            fit: BoxFit.contain,
+            errorBuilder: (context, error, stackTrace) {
+              // Fallback to network logo if asset fails
+              return _buildNetworkLogo(store, size);
+            },
+          ),
+        ),
+      );
+    }
+
+    // Try network logo if no local asset
+    return _buildNetworkLogo(store, size);
+  }
+
+  Widget _buildNetworkLogo(Store store, double size) {
     // Get logo URL with fallback to a more reliable source
     String? logoUrl = store.logoUrl;
-    
+
     // If no logo URL provided, try to get a default one based on store name
     if (logoUrl == null || logoUrl.isEmpty) {
       logoUrl = _getDefaultLogoUrl(store.name);
     }
-    
+
     if (logoUrl != null && logoUrl.isNotEmpty) {
       return ClipRRect(
         borderRadius: BorderRadius.circular(8),
@@ -1156,53 +1439,52 @@ class _StoresScreenState extends State<StoresScreen> {
                     strokeWidth: 2,
                     value: loadingProgress.expectedTotalBytes != null
                         ? loadingProgress.cumulativeBytesLoaded /
-                            loadingProgress.expectedTotalBytes!
+                              loadingProgress.expectedTotalBytes!
                         : null,
                   ),
                 ),
               );
             },
             errorBuilder: (context, error, stackTrace) {
-              // Fallback to icon if logo fails to load
-              return Container(
-                decoration: BoxDecoration(
-                  color: store.color.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(8),
-                ),
-                child: Center(
-                  child: Text(
-                    store.icon,
-                    style: TextStyle(fontSize: size * 0.6),
-                  ),
-                ),
-              );
+              // Fallback to store name initial if logo fails to load
+              return _buildFallbackLogo(store, size);
             },
           ),
         ),
       );
     } else {
-      // Fallback to icon if no logo URL
-      return Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          color: store.color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(8),
-        ),
-        child: Center(
-          child: Text(
-            store.icon,
-            style: TextStyle(fontSize: size * 0.6),
+      // Fallback to store name initial if no logo URL
+      return _buildFallbackLogo(store, size);
+    }
+  }
+
+  Widget _buildFallbackLogo(Store store, double size) {
+    // Use store name initial instead of emoji icon
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: store.color.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: kBorderGray, width: 1),
+      ),
+      child: Center(
+        child: Text(
+          store.name.isNotEmpty ? store.name[0].toUpperCase() : '?',
+          style: TextStyle(
+            fontSize: size * 0.5,
+            fontWeight: FontWeight.bold,
+            color: store.color,
           ),
         ),
-      );
-    }
+      ),
+    );
   }
 
   String? _getDefaultLogoUrl(String storeName) {
     // Map store names to their logo URLs
     final storeNameLower = storeName.toLowerCase();
-    
+
     if (storeNameLower.contains('jaya grocer')) {
       return 'https://www.jayagrocer.com/wp-content/uploads/2020/06/jaya-grocer-logo.png';
     } else if (storeNameLower.contains('village grocer')) {
@@ -1217,7 +1499,8 @@ class _StoresScreenState extends State<StoresScreen> {
       return 'https://www.giant.com.my/images/giant-logo.png';
     } else if (storeNameLower.contains('mydin')) {
       return 'https://www.mydin.com.my/images/mydin-logo.png';
-    } else if (storeNameLower.contains('speedmart') || storeNameLower.contains('99')) {
+    } else if (storeNameLower.contains('speedmart') ||
+        storeNameLower.contains('99')) {
       return 'https://www.99speedmart.com.my/images/logo.png';
     } else if (storeNameLower.contains('econsave')) {
       return 'https://www.econsave.com.my/images/logo.png';
@@ -1231,10 +1514,11 @@ class _StoresScreenState extends State<StoresScreen> {
       return 'https://www.lotuss.com.my/images/logo.png';
     } else if (storeNameLower.contains('cold storage')) {
       return 'https://www.coldstorage.com.my/images/logo.png';
-    } else if (storeNameLower.contains('big') || storeNameLower.contains('ben')) {
+    } else if (storeNameLower.contains('big') ||
+        storeNameLower.contains('ben')) {
       return 'https://www.big.com.my/images/logo.png';
     }
-    
+
     return null;
   }
 
@@ -1358,7 +1642,12 @@ class _LocationPickerDialogState extends State<_LocationPickerDialog> {
           onPressed: () {
             final lat = double.tryParse(_latController.text);
             final lng = double.tryParse(_lngController.text);
-            if (lat != null && lng != null && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+            if (lat != null &&
+                lng != null &&
+                lat >= -90 &&
+                lat <= 90 &&
+                lng >= -180 &&
+                lng <= 180) {
               Navigator.pop(context, {'lat': lat, 'lng': lng});
             } else {
               ScaffoldMessenger.of(context).showSnackBar(

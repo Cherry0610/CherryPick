@@ -226,3 +226,4 @@ The app will automatically:
 **It's like Trivago, but for groceries!** 🛒💰
 
 
+

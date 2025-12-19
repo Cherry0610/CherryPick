@@ -39,6 +39,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   final UserService _userService = UserService();
   final ImageUploadService _imageUploadService = ImageUploadService();
   bool _isSaving = false;
+  bool _isLoading = true;
 
   final List<String> _languages = ['English', 'Malay', 'Chinese'];
   final Map<String, String> _languageCodes = {
@@ -58,20 +59,39 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
   Future<void> _loadUserProfile() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
+      setState(() {
+        _isLoading = true;
+      });
+      
       try {
         final profile = await _userService.getUserProfile(user.uid);
-        if (profile != null) {
-          setState(() {
-            // Load exactly what user entered - no modifications
-            _usernameController.text = profile['username'] as String? ?? user.displayName ?? '';
-            _emailController.text = profile['email'] as String? ?? user.email ?? '';
-            _phoneController.text = profile['phone'] as String? ?? '';
-            _profileImageUrl = profile['profileImageUrl'] as String?;
-          });
-        }
+        
+        setState(() {
+          // Load user data from profile or Firebase Auth
+          _usernameController.text = profile?['username'] as String? ?? 
+                                     user.displayName ?? 
+                                     '';
+          _emailController.text = profile?['email'] as String? ?? 
+                                  user.email ?? 
+                                  '';
+          _phoneController.text = profile?['phone'] as String? ?? '';
+          _profileImageUrl = profile?['profileImageUrl'] as String?;
+          _isLoading = false;
+        });
       } catch (e) {
         debugPrint('Error loading user profile: $e');
+        // Even if profile doesn't exist, load from Firebase Auth
+        setState(() {
+          _usernameController.text = user.displayName ?? '';
+          _emailController.text = user.email ?? '';
+          _phoneController.text = '';
+          _isLoading = false;
+        });
       }
+    } else {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -365,54 +385,69 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
         ),
       ),
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(16),
-          child: Form(
-            key: _formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                // Personal Info Section
-                _buildSectionTitle('Personal Info'),
-                const SizedBox(height: 12),
-                _buildPersonalInfoCard(),
-                const SizedBox(height: 24),
+        child: _isLoading
+            ? const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(kProfileRed),
+                ),
+              )
+            : SingleChildScrollView(
+                padding: const EdgeInsets.all(16),
+                child: Form(
+                  key: _formKey,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Personal Info Section
+                      _buildSectionTitle('Personal Info'),
+                      const SizedBox(height: 12),
+                      _buildPersonalInfoCard(),
+                      const SizedBox(height: 24),
 
-                // Preferences Section
-                _buildSectionTitle('Preferences'),
-                const SizedBox(height: 12),
-                _buildPreferencesCard(),
-                const SizedBox(height: 24),
+                      // Preferences Section
+                      _buildSectionTitle('Preferences'),
+                      const SizedBox(height: 12),
+                      _buildPreferencesCard(),
+                      const SizedBox(height: 24),
 
-                // Save Button
-                SizedBox(
-                  width: double.infinity,
-                  height: 56,
-                  child: ElevatedButton(
-                    onPressed: _handleSave,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: kProfileRed,
-                      foregroundColor: kProfileWhite,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                      // Save Button
+                      SizedBox(
+                        width: double.infinity,
+                        height: 56,
+                        child: ElevatedButton(
+                          onPressed: _isSaving ? null : _handleSave,
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: kProfileRed,
+                            foregroundColor: kProfileWhite,
+                            shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            elevation: 0,
+                          ),
+                          child: _isSaving
+                              ? const SizedBox(
+                                  height: 20,
+                                  width: 20,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    valueColor: AlwaysStoppedAnimation<Color>(kProfileWhite),
+                                  ),
+                                )
+                              : const Text(
+                                  'Save Changes',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.bold,
+                                    fontFamily: 'Roboto',
+                                  ),
+                                ),
+                        ),
                       ),
-                      elevation: 0,
-                    ),
-                    child: const Text(
-                      'Save Changes',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                        fontFamily: 'Roboto',
-                      ),
-                    ),
+                      const SizedBox(height: 80), // Space for bottom nav
+                    ],
                   ),
                 ),
-                const SizedBox(height: 80), // Space for bottom nav
-              ],
-            ),
-          ),
-        ),
+              ),
       ),
       bottomNavigationBar: const AppBottomNavigationBar(currentIndex: 4),
     );

@@ -6,6 +6,7 @@ const Color kWhite = Color(0xFFFFFFFF);
 const Color kDarkGray = Color(0xFF1A1A1A);
 const Color kLightGray = Color(0xFFF5F5F5);
 const Color kMediumGray = Color(0xFF808080);
+const Color kAppRed = Color(0xFFD94C4C);
 
 class NotificationsLogScreen extends StatefulWidget {
   const NotificationsLogScreen({super.key});
@@ -20,35 +21,51 @@ class _NotificationsLogScreenState extends State<NotificationsLogScreen> {
   // Mock notifications
   final List<PriceAlert> _notifications = [
     PriceAlert(
-      productName: 'Sony WH-1000XM4',
-      oldPrice: 1299.00,
-      newPrice: 1099.00,
-      store: 'NSK Grocer',
+      productName: 'Minced Beef',
+      oldPrice: 35.90,
+      newPrice: 29.90,
+      store: 'Jaya Grocer',
       timestamp: DateTime.now().subtract(const Duration(hours: 2)),
       isRead: false,
     ),
     PriceAlert(
-      productName: 'Nintendo Switch',
-      oldPrice: 999.00,
-      newPrice: 899.00,
+      productName: 'Kellogg\'s Cornflakes',
+      oldPrice: 18.90,
+      newPrice: 15.90,
       store: 'Tesco',
       timestamp: DateTime.now().subtract(const Duration(days: 1)),
       isRead: false,
     ),
     PriceAlert(
-      productName: 'Instant Pot Duo',
-      oldPrice: 499.00,
-      newPrice: 449.00,
-      store: 'Giant',
+      productName: 'Anchor Butter',
+      oldPrice: 13.99,
+      newPrice: 12.50,
+      store: 'Lotus',
       timestamp: DateTime.now().subtract(const Duration(days: 3)),
       isRead: true,
     ),
     PriceAlert(
-      productName: 'Kindle Paperwhite',
-      oldPrice: 549.00,
-      newPrice: 499.00,
+      productName: 'Ayam Brand Canned Tuna',
+      oldPrice: 7.70,
+      newPrice: 6.50,
       store: 'AEON',
       timestamp: DateTime.now().subtract(const Duration(days: 5)),
+      isRead: true,
+    ),
+    PriceAlert(
+      productName: 'Whole Chicken',
+      oldPrice: 24.90,
+      newPrice: 21.90,
+      store: 'NSK Grocer',
+      timestamp: DateTime.now().subtract(const Duration(hours: 5)),
+      isRead: false,
+    ),
+    PriceAlert(
+      productName: 'Fresh Ikan Kembung',
+      oldPrice: 15.90,
+      newPrice: 13.90,
+      store: 'Village Grocer',
+      timestamp: DateTime.now().subtract(const Duration(days: 2)),
       isRead: true,
     ),
   ];
@@ -78,21 +95,21 @@ class _NotificationsLogScreenState extends State<NotificationsLogScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: kWhite,
+      backgroundColor: kAppRed,
       appBar: AppBar(
-        backgroundColor: kWhite,
+        backgroundColor: kAppRed,
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: kBlack),
+          icon: const Icon(Icons.arrow_back, color: kWhite),
           onPressed: () => Navigator.pop(context),
         ),
         title: const Text(
           'Price Alerts',
-          style: TextStyle(color: kBlack, fontWeight: FontWeight.bold),
+          style: TextStyle(color: kWhite, fontWeight: FontWeight.bold),
         ),
         actions: [
           IconButton(
-            icon: const Icon(Icons.delete_outline, color: kBlack),
+            icon: const Icon(Icons.delete_outline, color: kWhite),
             onPressed: _clearAll,
           ),
         ],

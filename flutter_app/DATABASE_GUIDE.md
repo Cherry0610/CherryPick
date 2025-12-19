@@ -297,3 +297,4 @@ If you need to debug database issues:
 3. Check Firestore security rules
 4. Verify user authentication status
 
+

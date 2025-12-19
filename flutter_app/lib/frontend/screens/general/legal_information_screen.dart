@@ -109,3 +109,4 @@ class LegalInformationScreen extends StatelessWidget {
 }
 
 
+

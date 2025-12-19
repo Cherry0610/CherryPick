@@ -12,6 +12,7 @@ import 'legal_information_screen.dart';
 import 'third_party_licenses_screen.dart';
 import 'report_issue_screen.dart';
 import '../../../backend/services/user_service.dart';
+import '../../../backend/services/wishlist_service.dart';
 import '../../widgets/bottom_navigation_bar.dart';
 
 // Figma Design Colors
@@ -48,8 +49,10 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final UserService _userService = UserService();
+  final WishlistService _wishlistService = WishlistService();
   Map<String, dynamic>? _userProfile;
   bool _isLoadingProfile = true;
+  int _wishlistCount = 0;
 
   @override
   void initState() {
@@ -69,9 +72,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
     if (user != null) {
       try {
         final profile = await _userService.getUserProfile(user.uid);
+        
+        // Fetch actual wishlist count from Firebase
+        int wishlistCount = 0;
+        try {
+          final wishlistItems = await _wishlistService.getUserWishlist(user.uid);
+          wishlistCount = wishlistItems.length;
+        } catch (e) {
+          debugPrint('Error loading wishlist count: $e');
+          wishlistCount = 0;
+        }
+        
         if (mounted) {
           setState(() {
             _userProfile = profile;
+            _wishlistCount = wishlistCount;
             _isLoadingProfile = false;
           });
         }
@@ -79,6 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         debugPrint('Error loading user profile: $e');
         if (mounted) {
           setState(() {
+            _wishlistCount = 0;
             _isLoadingProfile = false;
           });
         }
@@ -86,6 +102,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     } else {
       if (mounted) {
         setState(() {
+          _wishlistCount = 0;
           _isLoadingProfile = false;
         });
       }
@@ -152,7 +169,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           SettingsItem(
             icon: Icons.notifications_outlined,
             label: 'Notifications',
-            badge: '3',
             onTap: () {
               Navigator.push(
                 context,
@@ -338,6 +354,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ),
         ),
       ),
+      bottomNavigationBar: const AppBottomNavigationBar(currentIndex: 4),
     );
   }
 
@@ -532,8 +549,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Widget _buildStats() {
-    // Get stats from user profile, default to 0 for new users
-    final wishlistCount = _userProfile?['wishlistCount'] as int? ?? 0;
+    // Use actual wishlist count from Firebase, default to 0
+    final wishlistCount = _wishlistCount;
     final totalSaved = _userProfile?['totalSaved'] as double? ?? 0.0;
     final purchaseCount = _userProfile?['purchaseCount'] as int? ?? 0;
     

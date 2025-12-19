@@ -225,3 +225,4 @@ Then update `receipt_ocr_service.dart` to use real ML Kit.
 Your app is now a **real, production-ready application**! 🚀
 
 
+
