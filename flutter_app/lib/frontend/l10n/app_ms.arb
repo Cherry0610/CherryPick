@@ -1,0 +1,20 @@
+{
+  "@@locale": "ms",
+  "appTitle": "SmartPrice",
+  "welcome": "Selamat Datang",
+  "login": "Log Masuk",
+  "signUp": "Daftar",
+  "email": "E-mel",
+  "password": "Kata Laluan",
+  "username": "Nama Pengguna",
+  "address": "Alamat",
+  "saveChanges": "Simpan Perubahan",
+  "language": "Bahasa",
+  "home": "Laman Utama",
+  "profile": "Profil",
+  "search": "Cari",
+  "wishlist": "Senarai Impian",
+  "expenses": "Perbelanjaan",
+  "stores": "Kedai"
+}
+

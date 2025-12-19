@@ -1,0 +1,20 @@
+{
+  "@@locale": "zh",
+  "appTitle": "SmartPrice",
+  "welcome": "欢迎",
+  "login": "登录",
+  "signUp": "注册",
+  "email": "电子邮件",
+  "password": "密码",
+  "username": "用户名",
+  "address": "地址",
+  "saveChanges": "保存更改",
+  "language": "语言",
+  "home": "首页",
+  "profile": "个人资料",
+  "search": "搜索",
+  "wishlist": "愿望清单",
+  "expenses": "支出",
+  "stores": "商店"
+}
+

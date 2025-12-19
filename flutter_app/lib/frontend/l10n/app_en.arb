@@ -1,0 +1,68 @@
+{
+  "@@locale": "en",
+  "appTitle": "SmartPrice",
+  "@appTitle": {
+    "description": "The application title"
+  },
+  "welcome": "Welcome",
+  "@welcome": {
+    "description": "Welcome message"
+  },
+  "login": "Login",
+  "@login": {
+    "description": "Login button text"
+  },
+  "signUp": "Sign Up",
+  "@signUp": {
+    "description": "Sign up button text"
+  },
+  "email": "Email",
+  "@email": {
+    "description": "Email label"
+  },
+  "password": "Password",
+  "@password": {
+    "description": "Password label"
+  },
+  "username": "Username",
+  "@username": {
+    "description": "Username label"
+  },
+  "address": "Address",
+  "@address": {
+    "description": "Address label"
+  },
+  "saveChanges": "Save Changes",
+  "@saveChanges": {
+    "description": "Save changes button"
+  },
+  "language": "Language",
+  "@language": {
+    "description": "Language label"
+  },
+  "home": "Home",
+  "@home": {
+    "description": "Home screen title"
+  },
+  "profile": "Profile",
+  "@profile": {
+    "description": "Profile screen title"
+  },
+  "search": "Search",
+  "@search": {
+    "description": "Search placeholder"
+  },
+  "wishlist": "Wishlist",
+  "@wishlist": {
+    "description": "Wishlist screen title"
+  },
+  "expenses": "Expenses",
+  "@expenses": {
+    "description": "Expenses screen title"
+  },
+  "stores": "Stores",
+  "@stores": {
+    "description": "Stores screen title"
+  }
+}
+

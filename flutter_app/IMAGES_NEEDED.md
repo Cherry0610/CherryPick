@@ -164,3 +164,5 @@ All screens use:
 - ✅ Camera for barcode scanning
 
 **Images are optional enhancements** - the app is fully functional without them.
+
+

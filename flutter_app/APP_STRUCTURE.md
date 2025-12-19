@@ -209,3 +209,5 @@ Splash → Onboarding → Auth → Home Dashboard
 - Google Maps integration for store locator
 - OCR integration for receipt scanning
 - Push notifications for price alerts
+
+

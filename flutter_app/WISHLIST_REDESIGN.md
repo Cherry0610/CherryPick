@@ -107,3 +107,5 @@ The app is fully functional. You can:
 - And much more!
 
 All buttons work and navigate properly! 🎉
+
+
